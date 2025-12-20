@@ -30,10 +30,10 @@ Represents a specific location (URL) where a file with a specific hash can be fo
 
 ## 2. SOURCE_OPINION (Item Verification)
 
-Represents a user's feedback on a **specific version** of a source.
+Represents a user's feedback on a **specific version** of a source. (says if the source (url etc ...) is correct, not an oppinion about the file itself.)
 
 * **R4**: `SOURCE_OPINION`
-* **R5**: `target_box_id` (The specific Ergo box ID of the `FILE_SOURCE` being rated).
+* **R5**: `target_box_id` (The specific Ergo box ID of the 1. being rated).
 * **R8**: `Boolean` (Positive/Negative).
 * **R6**: `false` (Unlocked). The author can change their mind (e.g., if a file stops working, they can update their opinion from Positive to Negative).
 
@@ -60,7 +60,7 @@ Since links update frequently and lose their attached opinions, we need a persis
 # Application Behavior (Off-chain)
 
 ## 1. File Discovery (Hash-to-URL)
-* **Input:** User provides a SHA-256 / Blake2b256 hash.
+* **Input:** User provides a Blake2b256 hash.
 * **Query:** Fetch all unlocked boxes where `R4 == FILE_SOURCE` AND `R5 == hash`.
 * **Display:** List the URLs found (`R9`).
 
@@ -70,10 +70,9 @@ To determine if a Source URL is safe, the client evaluates two layers:
 1.  **Direct Opinions (`SOURCE_OPINION`):**
     * Look for boxes where `R5 == current_source_box_id`.
     * Sum the reputation (Token amount) of Positive vs. Negative `R8` values.
-    * *Note:* Old opinions on previous versions of this link (spent boxes) are ignored for safety, or shown as "Historical Reliability".
 
 2.  **Author Reputation (`PROFILE_OPINION`):**
-    * Identify the owner of the Source box (via `R7` or their Reputation Token).
+    * Identify the owner of the Source box (their Reputation Token).
     * Check if there are `PROFILE_OPINION` boxes targeting this owner.
     * If the owner is highly trusted, their new/updated links are flagged as "Likely Safe" by default.
 
@@ -94,7 +93,7 @@ To determine if a Source URL is safe, the client evaluates two layers:
     * Status: "Unverified" (unless User has high Profile Trust).
 
 2.  **Verifying a Source**
-    * User B downloads the file. It works.
+    * User B downloads the file. Check hash is correct. It works.
     * User B mints a `SOURCE_OPINION` box pointing to the Source's `box_id`.
     * Status: "Verified".
 
