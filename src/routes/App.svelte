@@ -16,7 +16,7 @@
 	import ProfileModal from "$lib/components/ProfileModal.svelte";
 	import { fetchProfile } from "$lib/ergo/profileFetch";
 	import { createProfileBox } from "$lib/ergo/sourceStore";
-	import BrowseSources from "$lib/components/BrowseSources.svelte";
+	import ProfileSources from "$lib/components/ProfileSources.svelte";
 	import SearchByHash from "$lib/components/SearchByHash.svelte";
 	import AddSource from "$lib/components/AddSource.svelte";
 	import { Search, Plus, UserPlus, LayoutGrid } from "lucide-svelte";
@@ -33,7 +33,7 @@
 	let showProfileModal = false;
 	let showSettingsModal = false;
 
-	let activeTab: "browse" | "search" | "add" = "browse";
+	let activeTab: "profile" | "search" | "add" = "profile";
 	let isCreatingProfile = false;
 	let addError: string | null = null;
 
@@ -180,11 +180,11 @@
 
 		<div class="flex items-center gap-1 ml-4">
 			<button
-				class="tab-button {activeTab === 'browse' ? 'active' : ''}"
-				on:click={() => (activeTab = "browse")}
+				class="tab-button {activeTab === 'profile' ? 'active' : ''}"
+				on:click={() => (activeTab = "profile")}
 			>
-				<LayoutGrid class="w-4 h-4" />
-				Browse
+				<User class="w-4 h-4" />
+				Profile
 			</button>
 			<button
 				class="tab-button {activeTab === 'search' ? 'active' : ''}"
@@ -264,8 +264,8 @@
 			</div>
 		{/if}
 
-		{#if activeTab === "browse"}
-			<BrowseSources connected={$connected} {hasProfile} />
+		{#if activeTab === "profile"}
+			<ProfileSources connected={$connected} {hasProfile} />
 		{:else if activeTab === "search"}
 			<SearchByHash {hasProfile} />
 		{:else if activeTab === "add"}

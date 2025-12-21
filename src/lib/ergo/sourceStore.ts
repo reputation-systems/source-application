@@ -15,7 +15,8 @@ import {
     fetchFileSourcesByHash,
     fetchSourceOpinions,
     fetchProfileOpinions,
-    fetchAllFileSources
+    fetchAllFileSources,
+    fetchFileSourcesByProfile
 } from './sourceFetch';
 import {
     FILE_SOURCE_TYPE_NFT_ID,
@@ -356,5 +357,31 @@ export async function loadProfileOpinions(profileTokenId: string) {
         });
     } catch (err: any) {
         console.error("Error loading profile opinions:", err);
+    }
+}
+
+/**
+ * Load file sources for a specific profile.
+ */
+export async function loadSourcesByProfile(profileTokenId: string) {
+    const currentFileSources = get(fileSources);
+    if (isEntryValid(currentFileSources[profileTokenId])) {
+        console.log(`Using cache for profile sources: ${profileTokenId}`);
+        return;
+    }
+
+    isLoading.set(true);
+    error.set(null);
+
+    try {
+        const sources = await fetchFileSourcesByProfile(profileTokenId, 50);
+        fileSources.update(s => {
+            s[profileTokenId] = { data: sources, timestamp: Date.now() };
+            return s;
+        });
+    } catch (err: any) {
+        error.set(err.message || "Error loading profile file sources.");
+    } finally {
+        isLoading.set(false);
     }
 }

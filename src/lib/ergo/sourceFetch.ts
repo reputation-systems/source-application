@@ -10,6 +10,7 @@ import {
 import { ergo_tree_hash } from './contract';
 import { SByte, SColl } from '@fleet-sdk/core';
 import DOMPurify from "dompurify";
+import { type ApiBox } from './object';
 
 
 const LIMIT_PER_PAGE = 100;
@@ -288,6 +289,95 @@ export async function fetchAllFileSources(limit: number = 50): Promise<FileSourc
 
     } catch (error) {
         console.error('Error fetching all file sources:', error);
+        return [];
+    }
+}
+
+/**
+ * Fetch all FILE_SOURCE boxes for a specific profile token ID.
+ * Returns file sources created by this profile.
+ */
+export async function fetchFileSourcesByProfile(profileTokenId: string, limit: number = 50): Promise<FileSource[]> {
+    console.log("Fetching file sources for profile:", profileTokenId);
+
+    try {
+        const url = `${get(explorer_uri)}/api/v1/boxes/unspent/search?offset=0&limit=${limit}`;
+
+        const searchBody = {
+            registers: {
+                "R4": serializedToRendered(SColl(SByte, hexToBytes(FILE_SOURCE_TYPE_NFT_ID) ?? "").toHex())
+            }
+        };
+
+        const finalBody = {
+            "ergoTreeTemplateHash": ergo_tree_hash,
+            "registers": searchBody.registers,
+            "assets": [profileTokenId]
+        };
+
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(finalBody)
+        });
+
+        if (!response.ok) {
+            console.error(`Error fetching profile sources: ${response.statusText}`);
+            return [];
+        }
+
+        const jsonData = await response.json();
+        if (!jsonData.items || jsonData.items.length === 0) {
+            return [];
+        }
+
+        const sources: FileSource[] = [];
+
+        for (const box of jsonData.items as ApiBox[]) {
+            if (!box.assets?.length) continue;
+            if (box.additionalRegisters.R6?.renderedValue !== "false") continue;
+            if (!box.additionalRegisters.R9?.renderedValue) continue;
+
+            let fileHash = "[Unknown]";
+            try {
+                const rawR5 = box.additionalRegisters.R5?.renderedValue;
+                if (rawR5) {
+                    fileHash = rawR5;
+                }
+            } catch (e) {
+                console.warn(`Error decoding R5 for box ${box.boxId}`, e);
+            }
+
+            let sourceUrl = "[Unreadable URL]";
+            try {
+                const rawValue = box.additionalRegisters.R9.renderedValue;
+                if (rawValue) {
+                    sourceUrl = hexToUtf8(rawValue) ?? "[Empty URL]";
+                    sourceUrl = DOMPurify.sanitize(sourceUrl);
+                }
+            } catch (e) {
+                console.warn(`Error decoding R9 for box ${box.boxId}`, e);
+            }
+
+            const source: FileSource = {
+                id: box.boxId,
+                fileHash: fileHash,
+                sourceUrl: sourceUrl,
+                ownerTokenId: box.assets[0].tokenId,
+                reputationAmount: Number(box.assets[0].amount),
+                timestamp: await getTimestampFromBlockId(box.blockId),
+                isLocked: false,
+                transactionId: box.transactionId
+            };
+
+            sources.push(source);
+        }
+
+        sources.sort((a, b) => b.timestamp - a.timestamp);
+        return sources;
+
+    } catch (error) {
+        console.error('Error fetching profile file sources:', error);
         return [];
     }
 }
