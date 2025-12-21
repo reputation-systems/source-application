@@ -12,11 +12,6 @@ import {
 import { generate_reputation_proof } from './submit';
 import { type RPBox } from '$lib/ergo/object';
 import {
-    type FileSource,
-    type SourceOpinion,
-    type ProfileOpinion
-} from './sourceObject';
-import {
     fetchFileSourcesByHash,
     fetchSourceOpinions,
     fetchProfileOpinions,
@@ -70,7 +65,16 @@ async function getOrCreateProfileBox(): Promise<RPBox | null> {
         await createProfileBox();
         return null;
     } else {
-        const mainBox = proof.current_boxes[0];
+        const mainBox = proof.current_boxes.find(box =>
+            box.type.tokenId === PROFILE_TYPE_NFT_ID &&
+            box.object_pointer === proof.token_id
+        );
+
+        if (!mainBox) {
+            console.warn("Main profile box not found in current boxes. Creating a new one...");
+            await createProfileBox();
+            return null;
+        }
 
         if (mainBox.is_locked) {
             throw new Error("Error: Your main profile box is locked (is_locked=true) and cannot be spent.");
