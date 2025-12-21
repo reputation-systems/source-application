@@ -71,7 +71,82 @@ export interface FileSourceWithScore extends FileSource {
     ownerTrustScore: number; // Trust score of the source owner
 }
 
+// --- GROUPED DATA STRUCTURES ---
+
+/**
+ * Data for a unique download source (URL)
+ */
+export interface DownloadSourceGroup {
+    sourceUrl: string;
+    sources: FileSource[]; // All FILE_SOURCE boxes for this URL
+    owners: string[];      // Unique owner token IDs
+    invalidations: InvalidFileSource[]; // All invalidations for all sources in this group
+    unavailabilities: UnavailableSource[]; // All unavailabilities for this URL
+}
+
+/**
+ * Data for a specific profile's contributions to a hash
+ */
+export interface ProfileSourceGroup {
+    profileTokenId: string;
+    sources: FileSource[]; // FILE_SOURCE boxes by this profile
+    // Each source in this group will have its own invalidations and unavailabilities
+}
+
 // --- HELPER FUNCTIONS ---
+
+/**
+ * Group file sources by their download URL.
+ */
+export function groupByDownloadSource(
+    sources: FileSource[],
+    invalidationsMap: Record<string, { data: InvalidFileSource[] }>,
+    unavailabilitiesMap: Record<string, { data: UnavailableSource[] }>
+): DownloadSourceGroup[] {
+    const groups: Record<string, DownloadSourceGroup> = {};
+
+    for (const source of sources) {
+        if (!groups[source.sourceUrl]) {
+            groups[source.sourceUrl] = {
+                sourceUrl: source.sourceUrl,
+                sources: [],
+                owners: [],
+                invalidations: [],
+                unavailabilities: unavailabilitiesMap[source.sourceUrl]?.data || []
+            };
+        }
+
+        groups[source.sourceUrl].sources.push(source);
+        if (!groups[source.sourceUrl].owners.includes(source.ownerTokenId)) {
+            groups[source.sourceUrl].owners.push(source.ownerTokenId);
+        }
+
+        // Add invalidations for this specific box
+        const boxInvalidations = invalidationsMap[source.id]?.data || [];
+        groups[source.sourceUrl].invalidations.push(...boxInvalidations);
+    }
+
+    return Object.values(groups).sort((a, b) => b.sources.length - a.sources.length);
+}
+
+/**
+ * Group file sources by the profile that submitted them.
+ */
+export function groupByProfile(sources: FileSource[]): ProfileSourceGroup[] {
+    const groups: Record<string, ProfileSourceGroup> = {};
+
+    for (const source of sources) {
+        if (!groups[source.ownerTokenId]) {
+            groups[source.ownerTokenId] = {
+                profileTokenId: source.ownerTokenId,
+                sources: []
+            };
+        }
+        groups[source.ownerTokenId].sources.push(source);
+    }
+
+    return Object.values(groups).sort((a, b) => b.sources.length - a.sources.length);
+}
 
 /**
  * Calculate the trust score for a profile based on PROFILE_OPINION boxes.

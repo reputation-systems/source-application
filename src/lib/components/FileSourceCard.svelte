@@ -39,13 +39,28 @@
     let isVoting = false;
     let voteError: string | null = null;
 
-    $: confirmationScore = confirmations.reduce((sum, op) => sum + op.reputationAmount, 0);
-    $: invalidationScore = invalidations.reduce((sum, op) => sum + op.reputationAmount, 0);
-    $: unavailabilityScore = unavailabilities.reduce((sum, op) => sum + op.reputationAmount, 0);
-    
-    $: userHasConfirmed = confirmations.some(op => op.ownerTokenId === userProfileTokenId);
-    $: userHasInvalidated = invalidations.some(op => op.authorTokenId === userProfileTokenId);
-    $: userHasMarkedUnavailable = unavailabilities.some(op => op.authorTokenId === userProfileTokenId);
+    $: confirmationScore = confirmations.reduce(
+        (sum, op) => sum + op.reputationAmount,
+        0,
+    );
+    $: invalidationScore = invalidations.reduce(
+        (sum, op) => sum + op.reputationAmount,
+        0,
+    );
+    $: unavailabilityScore = unavailabilities.reduce(
+        (sum, op) => sum + op.reputationAmount,
+        0,
+    );
+
+    $: userHasConfirmed = confirmations.some(
+        (op) => op.ownerTokenId === userProfileTokenId,
+    );
+    $: userHasInvalidated = invalidations.some(
+        (op) => op.authorTokenId === userProfileTokenId,
+    );
+    $: userHasMarkedUnavailable = unavailabilities.some(
+        (op) => op.authorTokenId === userProfileTokenId,
+    );
 
     let isEditingSource = false;
     let newSourceUrl = source.sourceUrl;
@@ -136,10 +151,16 @@
             return { text: "Invalid", color: "bg-red-500/20 text-red-400" };
         }
         if (unavailabilityScore > 0) {
-            return { text: "Unavailable", color: "bg-orange-500/20 text-orange-400" };
+            return {
+                text: "Unavailable",
+                color: "bg-orange-500/20 text-orange-400",
+            };
         }
         if (confirmationScore > 0) {
-            return { text: "Confirmed", color: "bg-green-500/20 text-green-400" };
+            return {
+                text: "Confirmed",
+                color: "bg-green-500/20 text-green-400",
+            };
         }
         return { text: "Unverified", color: "bg-gray-500/20 text-gray-400" };
     }
@@ -314,7 +335,9 @@
                             {userHasInvalidated ? "Invalidated" : "Invalid"}
                         </Button>
                         <Button
-                            variant={userHasMarkedUnavailable ? "default" : "outline"}
+                            variant={userHasMarkedUnavailable
+                                ? "default"
+                                : "outline"}
                             size="sm"
                             on:click={handleUnavailable}
                             disabled={isVoting || userHasMarkedUnavailable}
@@ -322,22 +345,33 @@
                             title="Mark this URL as broken or unavailable"
                         >
                             <CloudOff class="w-3 h-3 mr-1" />
-                            {userHasMarkedUnavailable ? "Unavailable" : "Unavailable"}
+                            {userHasMarkedUnavailable
+                                ? "Unavailable"
+                                : "Unavailable"}
                         </Button>
                     </div>
                 {/if}
 
                 <!-- Score Display -->
                 <div class="flex items-center gap-3 text-xs">
-                    <div class="flex items-center gap-1" title="Confirmations">
+                    <div
+                        class="flex items-center gap-1"
+                        title="File Confirmations (Global)"
+                    >
                         <ThumbsUp class="w-3 h-3 text-green-500" />
-                        <span>{confirmations.length}</span>
+                        <span>{confirmations.length || 1}</span>
                     </div>
-                    <div class="flex items-center gap-1" title="Invalidations">
+                    <div
+                        class="flex items-center gap-1"
+                        title="Source Invalidations (Thumbs Down)"
+                    >
                         <ThumbsDown class="w-3 h-3 text-red-500" />
                         <span>{invalidations.length}</span>
                     </div>
-                    <div class="flex items-center gap-1" title="Unavailabilities">
+                    <div
+                        class="flex items-center gap-1"
+                        title="Source Offline (Unavailable)"
+                    >
                         <CloudOff class="w-3 h-3 text-orange-500" />
                         <span>{unavailabilities.length}</span>
                     </div>
