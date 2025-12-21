@@ -54,6 +54,17 @@ export interface ProfileOpinion {
     transactionId: string;   // Transaction ID
 }
 
+// --- TIMELINE DATA STRUCTURES ---
+
+export interface TimelineEvent {
+    timestamp: number;
+    type: 'FILE_SOURCE' | 'INVALID_FILE_SOURCE' | 'UNAVAILABLE_SOURCE' | 'PROFILE_OPINION';
+    label: string;
+    color: string;
+    authorTokenId?: string;
+    data: any;
+}
+
 // --- AGGREGATED DATA STRUCTURES ---
 
 /**

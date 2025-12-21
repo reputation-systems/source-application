@@ -407,3 +407,157 @@ export async function fetchFileSourcesByProfile(profileTokenId: string, limit: n
         return [];
     }
 }
+
+/**
+ * Fetch all INVALID_FILE_SOURCE boxes created by a specific profile.
+ */
+export async function fetchInvalidFileSourcesByProfile(profileTokenId: string, limit: number = 50): Promise<InvalidFileSource[]> {
+    console.log("Fetching invalidations by profile:", profileTokenId);
+
+    try {
+        const url = `${get(explorer_uri)}/api/v1/boxes/unspent/search?offset=0&limit=${limit}`;
+
+        const searchBody = {
+            registers: {
+                "R4": serializedToRendered(SColl(SByte, hexToBytes(INVALID_FILE_SOURCE_TYPE_NFT_ID) ?? "").toHex())
+            }
+        };
+
+        const finalBody = {
+            "ergoTreeTemplateHash": ergo_tree_hash,
+            "registers": searchBody.registers,
+            "assets": [profileTokenId]
+        };
+
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(finalBody)
+        });
+
+        if (!response.ok) return [];
+
+        const jsonData = await response.json();
+        if (!jsonData.items) return [];
+
+        const invalidations: InvalidFileSource[] = [];
+        for (const box of jsonData.items as ApiBox[]) {
+            if (!box.assets?.length) continue;
+            invalidations.push({
+                id: box.boxId,
+                targetBoxId: hexToUtf8(box.additionalRegisters.R5?.renderedValue || "") || "",
+                authorTokenId: box.assets[0].tokenId,
+                reputationAmount: Number(box.assets[0].amount),
+                timestamp: await getTimestampFromBlockId(box.blockId),
+                transactionId: box.transactionId
+            });
+        }
+        return invalidations;
+    } catch (error) {
+        console.error('Error fetching profile invalidations:', error);
+        return [];
+    }
+}
+
+/**
+ * Fetch all UNAVAILABLE_SOURCE boxes created by a specific profile.
+ */
+export async function fetchUnavailableSourcesByProfile(profileTokenId: string, limit: number = 50): Promise<UnavailableSource[]> {
+    console.log("Fetching unavailabilities by profile:", profileTokenId);
+
+    try {
+        const url = `${get(explorer_uri)}/api/v1/boxes/unspent/search?offset=0&limit=${limit}`;
+
+        const searchBody = {
+            registers: {
+                "R4": serializedToRendered(SColl(SByte, hexToBytes(UNAVAILABLE_SOURCE_TYPE_NFT_ID) ?? "").toHex())
+            }
+        };
+
+        const finalBody = {
+            "ergoTreeTemplateHash": ergo_tree_hash,
+            "registers": searchBody.registers,
+            "assets": [profileTokenId]
+        };
+
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(finalBody)
+        });
+
+        if (!response.ok) return [];
+
+        const jsonData = await response.json();
+        if (!jsonData.items) return [];
+
+        const unavailabilities: UnavailableSource[] = [];
+        for (const box of jsonData.items as ApiBox[]) {
+            if (!box.assets?.length) continue;
+            unavailabilities.push({
+                id: box.boxId,
+                sourceUrl: hexToUtf8(box.additionalRegisters.R5?.renderedValue || "") || "",
+                authorTokenId: box.assets[0].tokenId,
+                reputationAmount: Number(box.assets[0].amount),
+                timestamp: await getTimestampFromBlockId(box.blockId),
+                transactionId: box.transactionId
+            });
+        }
+        return unavailabilities;
+    } catch (error) {
+        console.error('Error fetching profile unavailabilities:', error);
+        return [];
+    }
+}
+
+/**
+ * Fetch all PROFILE_OPINION boxes created by a specific profile.
+ */
+export async function fetchProfileOpinionsByAuthor(authorTokenId: string, limit: number = 50): Promise<ProfileOpinion[]> {
+    console.log("Fetching profile opinions by author:", authorTokenId);
+
+    try {
+        const url = `${get(explorer_uri)}/api/v1/boxes/unspent/search?offset=0&limit=${limit}`;
+
+        const searchBody = {
+            registers: {
+                "R4": serializedToRendered(SColl(SByte, hexToBytes(PROFILE_OPINION_TYPE_NFT_ID) ?? "").toHex())
+            }
+        };
+
+        const finalBody = {
+            "ergoTreeTemplateHash": ergo_tree_hash,
+            "registers": searchBody.registers,
+            "assets": [authorTokenId]
+        };
+
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(finalBody)
+        });
+
+        if (!response.ok) return [];
+
+        const jsonData = await response.json();
+        if (!jsonData.items) return [];
+
+        const opinions: ProfileOpinion[] = [];
+        for (const box of jsonData.items as ApiBox[]) {
+            if (!box.assets?.length) continue;
+            opinions.push({
+                id: box.boxId,
+                targetProfileTokenId: hexToUtf8(box.additionalRegisters.R5?.renderedValue || "") || "",
+                isTrusted: box.additionalRegisters.R8?.renderedValue === 'true',
+                authorTokenId: box.assets[0].tokenId,
+                reputationAmount: Number(box.assets[0].amount),
+                timestamp: await getTimestampFromBlockId(box.blockId),
+                transactionId: box.transactionId
+            });
+        }
+        return opinions;
+    } catch (error) {
+        console.error('Error fetching profile opinions by author:', error);
+        return [];
+    }
+}

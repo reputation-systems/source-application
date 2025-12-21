@@ -13,6 +13,7 @@
     import {
         groupByDownloadSource,
         groupByProfile,
+        type TimelineEvent,
     } from "$lib/ergo/sourceObject";
     import { Button } from "$lib/components/ui/button/index.js";
     import { Input } from "$lib/components/ui/input/index.js";
@@ -20,11 +21,12 @@
     import { Search, ThumbsUp, LayoutGrid, Users } from "lucide-svelte";
     import DownloadSourceCard from "./DownloadSourceCard.svelte";
     import ProfileSourceGroup from "./ProfileSourceGroup.svelte";
+    import Timeline from "./Timeline.svelte";
 
     export let hasProfile = false;
 
     let searchHash = "";
-    let viewMode: "source" | "profile" = "source";
+    let viewMode: "source" | "profile" | "timeline" = "source";
 
     $: {
         const searchParam = $page.url.searchParams.get("search");
@@ -52,6 +54,59 @@
     $: groupedByProfile = groupByProfile(sources);
 
     $: totalThumbsUp = sources.length;
+
+    $: timelineEvents = (() => {
+        const events: TimelineEvent[] = [];
+
+        // Add sources
+        for (const source of sources) {
+            events.push({
+                timestamp: source.timestamp,
+                type: "FILE_SOURCE",
+                label: `New download source added`,
+                color: "#22c55e", // green-500
+                authorTokenId: source.ownerTokenId,
+                data: { sourceUrl: source.sourceUrl },
+            });
+        }
+
+        // Add invalidations
+        for (const boxId in $invalidFileSources) {
+            const invs = $invalidFileSources[boxId].data;
+            const targetSource = sources.find((s) => s.id === boxId);
+            if (targetSource) {
+                for (const inv of invs) {
+                    events.push({
+                        timestamp: inv.timestamp,
+                        type: "INVALID_FILE_SOURCE",
+                        label: `Source marked as invalid`,
+                        color: "#ef4444", // red-500
+                        authorTokenId: inv.authorTokenId,
+                        data: { sourceUrl: targetSource.sourceUrl },
+                    });
+                }
+            }
+        }
+
+        // Add unavailabilities
+        for (const url in $unavailableSources) {
+            const unavs = $unavailableSources[url].data;
+            if (sources.some((s) => s.sourceUrl === url)) {
+                for (const unav of unavs) {
+                    events.push({
+                        timestamp: unav.timestamp,
+                        type: "UNAVAILABLE_SOURCE",
+                        label: `Source marked as unavailable`,
+                        color: "#f59e0b", // amber-500
+                        authorTokenId: unav.authorTokenId,
+                        data: { sourceUrl: url },
+                    });
+                }
+            }
+        }
+
+        return events;
+    })();
 </script>
 
 <div class="mb-6">
@@ -119,6 +174,16 @@
                     <Users class="w-4 h-4" />
                     By Profile
                 </button>
+                <button
+                    class="flex items-center gap-2 px-3 py-1.5 rounded-md text-sm transition-all {viewMode ===
+                    'timeline'
+                        ? 'bg-background shadow-sm text-foreground'
+                        : 'text-muted-foreground hover:text-foreground'}"
+                    on:click={() => (viewMode = "timeline")}
+                >
+                    <Search class="w-4 h-4" />
+                    Timeline
+                </button>
             </div>
         {/if}
     </div>
@@ -148,10 +213,15 @@
                         : null}
                 />
             {/each}
-        {:else}
+        {:else if viewMode === "profile"}
             {#each groupedByProfile as group (group.profileTokenId)}
                 <ProfileSourceGroup {group} />
             {/each}
+        {:else if viewMode === "timeline"}
+            <Timeline
+                events={timelineEvents}
+                title="File Source Opinion History"
+            />
         {/if}
     </div>
 {/if}

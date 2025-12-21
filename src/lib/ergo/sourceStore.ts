@@ -6,6 +6,9 @@ import {
     invalidFileSources,
     unavailableSources,
     profileOpinions,
+    profileInvalidations,
+    profileUnavailabilities,
+    profileOpinionsGiven,
     isLoading,
     error,
     CACHE_DURATION
@@ -17,8 +20,11 @@ import {
     fetchInvalidFileSources,
     fetchUnavailableSources,
     fetchProfileOpinions,
+    fetchProfileOpinionsByAuthor,
     fetchAllFileSources,
-    fetchFileSourcesByProfile
+    fetchFileSourcesByProfile,
+    fetchInvalidFileSourcesByProfile,
+    fetchUnavailableSourcesByProfile
 } from './sourceFetch';
 import {
     FILE_SOURCE_TYPE_NFT_ID,
@@ -377,6 +383,12 @@ export async function loadProfileOpinions(profileTokenId: string) {
             s[profileTokenId] = { data: opinions, timestamp: Date.now() };
             return s;
         });
+
+        const opinionsGiven = await fetchProfileOpinionsByAuthor(profileTokenId);
+        profileOpinionsGiven.update(s => {
+            s[profileTokenId] = { data: opinionsGiven, timestamp: Date.now() };
+            return s;
+        });
     } catch (err: any) {
         console.error("Error loading profile opinions:", err);
     }
@@ -387,8 +399,17 @@ export async function loadProfileOpinions(profileTokenId: string) {
  */
 export async function loadSourcesByProfile(profileTokenId: string) {
     const currentFileSources = get(fileSources);
-    if (isEntryValid(currentFileSources[profileTokenId])) {
-        console.log(`Using cache for profile sources: ${profileTokenId}`);
+    const currentInvalidations = get(profileInvalidations);
+    const currentUnavailabilities = get(profileUnavailabilities);
+
+    const sourcesValid = isEntryValid(currentFileSources[profileTokenId]);
+    const invsValid = isEntryValid(currentInvalidations[profileTokenId]);
+    const unavsValid = isEntryValid(currentUnavailabilities[profileTokenId]);
+
+    if (sourcesValid && invsValid && unavsValid) {
+        console.log(`Using cache for profile sources and opinions: ${profileTokenId}`);
+        // Also load profile opinions (trust/distrust)
+        await loadProfileOpinions(profileTokenId);
         return;
     }
 
@@ -396,11 +417,30 @@ export async function loadSourcesByProfile(profileTokenId: string) {
     error.set(null);
 
     try {
+        // Fetch sources
         const sources = await fetchFileSourcesByProfile(profileTokenId, 50);
         fileSources.update(s => {
             s[profileTokenId] = { data: sources, timestamp: Date.now() };
             return s;
         });
+
+        // Fetch invalidations created by this profile
+        const invalidations = await fetchInvalidFileSourcesByProfile(profileTokenId, 50);
+        profileInvalidations.update(s => {
+            s[profileTokenId] = { data: invalidations, timestamp: Date.now() };
+            return s;
+        });
+
+        // Fetch unavailabilities created by this profile
+        const unavailabilities = await fetchUnavailableSourcesByProfile(profileTokenId, 50);
+        profileUnavailabilities.update(s => {
+            s[profileTokenId] = { data: unavailabilities, timestamp: Date.now() };
+            return s;
+        });
+
+        // Also load profile opinions (trust/distrust)
+        await loadProfileOpinions(profileTokenId);
+
     } catch (err: any) {
         error.set(err.message || "Error loading profile file sources.");
     } finally {
