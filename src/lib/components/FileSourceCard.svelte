@@ -52,9 +52,9 @@
         0,
     );
 
-    $: userHasConfirmed = confirmations.some(
-        (op) => op.ownerTokenId === userProfileTokenId,
-    );
+    $: userHasConfirmed =
+        source.ownerTokenId === userProfileTokenId ||
+        confirmations.some((op) => op.ownerTokenId === userProfileTokenId);
     $: userHasInvalidated = invalidations.some(
         (op) => op.authorTokenId === userProfileTokenId,
     );

@@ -19,14 +19,11 @@
     export let group: DownloadSourceGroup;
     export let userProfileTokenId: string | null = null;
     export let fileHash: string;
-    export let totalFileSources: number = 0;
 
     let isVoting = false;
     let voteError: string | null = null;
 
-    $: userHasConfirmed = group.sources.some(
-        (s) => s.ownerTokenId === userProfileTokenId,
-    );
+    $: userHasConfirmed = group.owners.includes(userProfileTokenId || "");
     $: userHasInvalidated = group.invalidations.some(
         (op) => op.authorTokenId === userProfileTokenId,
     );

@@ -193,6 +193,15 @@ export async function updateFileSource(
  */
 export async function confirmSource(fileHash: string, sourceUrl: string): Promise<string> {
     console.log("API: confirmSource", { fileHash, sourceUrl });
+
+    // Safety check: has the user already confirmed this?
+    const currentSources = get(fileSources)[fileHash]?.data || [];
+    const userTokenId = get(reputation_proof)?.token_id;
+
+    if (userTokenId && currentSources.some(s => s.sourceUrl === sourceUrl && s.ownerTokenId === userTokenId)) {
+        throw new Error("You have already confirmed this source.");
+    }
+
     return await addFileSource(fileHash, sourceUrl);
 }
 
