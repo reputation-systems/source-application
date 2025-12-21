@@ -1,5 +1,7 @@
 <script lang="ts">
     import { onMount } from "svelte";
+    import { page } from "$app/stores";
+    import { goto } from "$app/navigation";
     import { loadSourcesByProfile } from "$lib/ergo/sourceStore";
     import {
         fileSources,
@@ -17,6 +19,14 @@
 
     let filterTokenId = "";
     let searchInput = "";
+
+    $: {
+        const profileParam = $page.url.searchParams.get("profile");
+        if (profileParam !== filterTokenId) {
+            filterTokenId = profileParam || "";
+            searchInput = profileParam || "";
+        }
+    }
 
     $: currentProfileTokenId = $reputation_proof?.token_id;
     $: activeProfileTokenId = filterTokenId || currentProfileTokenId;
@@ -38,12 +48,22 @@
     }
 
     function handleSearch() {
-        filterTokenId = searchInput.trim();
+        const newFilter = searchInput.trim();
+        if (newFilter === filterTokenId) return;
+
+        const url = new URL($page.url);
+        if (newFilter) {
+            url.searchParams.set("profile", newFilter);
+        } else {
+            url.searchParams.delete("profile");
+        }
+        goto(url.toString(), { keepFocus: true, noScroll: true });
     }
 
     function clearFilter() {
-        filterTokenId = "";
-        searchInput = "";
+        const url = new URL($page.url);
+        url.searchParams.delete("profile");
+        goto(url.toString(), { keepFocus: true, noScroll: true });
     }
 </script>
 

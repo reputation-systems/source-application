@@ -1,5 +1,7 @@
 <script lang="ts">
     import { searchByHash } from "$lib/ergo/sourceStore";
+    import { page } from "$app/stores";
+    import { goto } from "$app/navigation";
     import {
         fileSources,
         isLoading,
@@ -17,9 +19,21 @@
 
     let searchHash = "";
 
+    $: {
+        const searchParam = $page.url.searchParams.get("search");
+        if (searchParam && searchParam !== searchHash) {
+            searchHash = searchParam;
+            searchByHash(searchHash);
+        }
+    }
+
     async function handleSearch() {
-        if (!searchHash.trim()) return;
-        await searchByHash(searchHash.trim());
+        const newSearch = searchHash.trim();
+        if (!newSearch) return;
+
+        const url = new URL($page.url);
+        url.searchParams.set("search", newSearch);
+        goto(url.toString(), { keepFocus: true, noScroll: true });
     }
 </script>
 

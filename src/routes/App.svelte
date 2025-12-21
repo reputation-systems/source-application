@@ -1,6 +1,8 @@
 <script lang="ts">
 	import { onMount } from "svelte";
 	import { browser } from "$app/environment";
+	import { page } from "$app/stores";
+	import { goto } from "$app/navigation";
 	import Theme from "./Theme.svelte";
 	import {
 		address,
@@ -40,6 +42,36 @@
 	$: hasProfile =
 		$reputation_proof !== null &&
 		$reputation_proof?.current_boxes?.length > 0;
+
+	// URL Synchronization
+	$: {
+		const profile = $page.url.searchParams.get("profile");
+		const search = $page.url.searchParams.get("search");
+		const tab = $page.url.searchParams.get("tab");
+
+		if (profile) {
+			activeTab = "profile";
+		} else if (search) {
+			activeTab = "search";
+		} else if (tab === "add") {
+			activeTab = "add";
+		} else if (tab === "search") {
+			activeTab = "search";
+		} else if (tab === "profile") {
+			activeTab = "profile";
+		}
+	}
+
+	function switchTab(tab: "profile" | "search" | "add") {
+		const url = new URL($page.url);
+		url.searchParams.set("tab", tab);
+
+		// Clear other params when switching tabs to avoid confusion
+		if (tab !== "profile") url.searchParams.delete("profile");
+		if (tab !== "search") url.searchParams.delete("search");
+
+		goto(url.toString(), { keepFocus: true, noScroll: true });
+	}
 
 	// Footer text
 	const footerMessages = [
@@ -181,21 +213,21 @@
 		<div class="flex items-center gap-1 ml-4">
 			<button
 				class="tab-button {activeTab === 'profile' ? 'active' : ''}"
-				on:click={() => (activeTab = "profile")}
+				on:click={() => switchTab("profile")}
 			>
 				<User class="w-4 h-4" />
 				Profile
 			</button>
 			<button
 				class="tab-button {activeTab === 'search' ? 'active' : ''}"
-				on:click={() => (activeTab = "search")}
+				on:click={() => switchTab("search")}
 			>
 				<Search class="w-4 h-4" />
 				Search
 			</button>
 			<button
 				class="tab-button {activeTab === 'add' ? 'active' : ''}"
-				on:click={() => (activeTab = "add")}
+				on:click={() => switchTab("add")}
 			>
 				<Plus class="w-4 h-4" />
 				Add
