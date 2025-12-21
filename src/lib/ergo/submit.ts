@@ -15,6 +15,20 @@ import { ergo_tree_address } from './contract';
 import { stringToBytes } from '@scure/base';
 import { get } from 'svelte/store';
 
+function hexOrUtf8ToBytes(value: string | null | undefined): Uint8Array {
+    if (!value) {
+        return new Uint8Array();
+    }
+
+    const hexBytes = hexToBytes(value);
+    if (hexBytes) {
+        return hexBytes;
+    }
+
+    // fallback: utf-8
+    return new TextEncoder().encode(value);
+}
+
 /**
  * Generates or modifies a reputation proof by building and submitting a transaction.
  * @param token_amount The amount of the token for the new proof box.
@@ -120,7 +134,7 @@ export async function generate_reputation_proof(
 
     const new_registers = {
         R4: SColl(SByte, hexToBytes(type_nft_id) ?? "").toHex(),
-        R5: SColl(SByte, hexToBytes(object_pointer) ?? "").toHex(),
+        R5: SColl(SByte, hexOrUtf8ToBytes(object_pointer) ?? "").toHex(),
         R6: SBool(is_locked).toHex(),
         R7: SColl(SByte, propositionBytes).toHex(),
         R8: SBool(polarization).toHex(),

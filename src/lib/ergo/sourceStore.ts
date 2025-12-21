@@ -224,7 +224,7 @@ export async function markInvalidSource(sourceBoxId: string): Promise<string> {
  * Creates an UNAVAILABLE_SOURCE box with R5=sourceUrl.
  */
 export async function markUnavailableSource(sourceUrl: string): Promise<string> {
-    console.log("API: markUnavailableSource", { sourceUrl });
+    console.log("API: markUnavailableSource", sourceUrl);
 
     const inputProofBox = await getOrCreateProfileBox();
     if (!inputProofBox) {
