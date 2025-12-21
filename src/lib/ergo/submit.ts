@@ -10,24 +10,10 @@ import {
 import { SColl, SByte, SBool } from '@fleet-sdk/serializer';
 import { type RPBox } from '$lib/ergo/object';
 import { explorer_uri, PROFILE_TYPE_NFT_ID } from './envs';
-import { hexToBytes } from './utils';
+import { hexToBytes, hexOrUtf8ToBytes } from './utils';
 import { ergo_tree_address } from './contract';
 import { stringToBytes } from '@scure/base';
 import { get } from 'svelte/store';
-
-function hexOrUtf8ToBytes(value: string | null | undefined): Uint8Array {
-    if (!value) {
-        return new Uint8Array();
-    }
-
-    const hexBytes = hexToBytes(value);
-    if (hexBytes) {
-        return hexBytes;
-    }
-
-    // fallback: utf-8
-    return new TextEncoder().encode(value);
-}
 
 /**
  * Generates or modifies a reputation proof by building and submitting a transaction.

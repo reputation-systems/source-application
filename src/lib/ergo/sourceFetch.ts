@@ -1,6 +1,6 @@
 import { get } from 'svelte/store';
 import { type FileSource, type ProfileOpinion } from './sourceObject';
-import { hexToBytes, hexToUtf8, serializedToRendered } from './utils';
+import { hexOrUtf8ToBytes, hexToBytes, hexToUtf8, serializedToRendered } from './utils';
 import {
     FILE_SOURCE_TYPE_NFT_ID,
     INVALID_FILE_SOURCE_TYPE_NFT_ID,
@@ -55,7 +55,7 @@ async function searchBoxes(
     const searchBody = {
         registers: {
             "R4": serializedToRendered(SColl(SByte, hexToBytes(r4TypeNftId) ?? "").toHex()),
-            "R5": serializedToRendered(SColl(SByte, hexToBytes(r5Value) ?? "").toHex())
+            "R5": serializedToRendered(SColl(SByte, hexOrUtf8ToBytes(r5Value) ?? "").toHex())
         }
     };
 

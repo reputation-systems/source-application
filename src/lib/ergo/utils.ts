@@ -11,16 +11,30 @@ export function hexToUtf8(hexString: string): string | null {
         if (hexString.length % 2 !== 0) {
             return null;
         }
-    
+
         const byteArray = new Uint8Array(hexString.match(/.{1,2}/g)!.map(byte => parseInt(byte, 16)));
         const decoder = new TextDecoder('utf-8');
         const utf8String = decoder.decode(byteArray);
-    
+
         return utf8String;
     } catch {
         return null;
     }
-  }
+}
+
+export function hexOrUtf8ToBytes(value: string | null | undefined): Uint8Array {
+    if (!value) {
+        return new Uint8Array();
+    }
+
+    const hexBytes = hexToBytes(value);
+    if (hexBytes) {
+        return hexBytes;
+    }
+
+    // fallback: utf-8
+    return new TextEncoder().encode(value);
+}
 
 export function generate_pk_proposition(wallet_pk: string): string {
     const pk = ErgoAddress.fromBase58(wallet_pk).getPublicKeys()[0];
@@ -32,7 +46,7 @@ export function SString(value: string): string {
     return SColl(SByte, hexToBytes(value) ?? "").toHex();
 }
 
-export function uint8ArrayToHex(array: Uint8Array): string { 
+export function uint8ArrayToHex(array: Uint8Array): string {
     return [...new Uint8Array(array)]
         .map(x => x.toString(16).padStart(2, '0'))
         .join('');
@@ -60,7 +74,7 @@ export function hexToBytes(hexString: string | undefined | null): Uint8Array | n
         return null;
     }
     if (hexString.length % 2 !== 0) {
-        return null; 
+        return null;
     }
     try {
         const byteArray = new Uint8Array(hexString.length / 2);
