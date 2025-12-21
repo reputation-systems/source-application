@@ -3,9 +3,22 @@
         type FileSource,
         type SourceOpinion,
     } from "$lib/ergo/sourceObject";
-    import { voteOnSource } from "$lib/ergo/sourceStore";
+    import {
+        voteOnSource,
+        updateFileSource,
+        updateSourceVote,
+    } from "$lib/ergo/sourceStore";
     import { Button } from "$lib/components/ui/button/index.js";
-    import { ThumbsUp, ThumbsDown, Copy, ExternalLink } from "lucide-svelte";
+    import { Input } from "$lib/components/ui/input/index.js";
+    import {
+        ThumbsUp,
+        ThumbsDown,
+        Copy,
+        ExternalLink,
+        Edit2,
+        Check,
+        X,
+    } from "lucide-svelte";
     import * as jdenticon from "jdenticon";
     import { get } from "svelte/store";
     import { web_explorer_uri_tx, web_explorer_uri_tkn } from "$lib/ergo/envs";
@@ -28,9 +41,14 @@
         0,
     );
     $: netScore = positiveScore - negativeScore;
-    $: userHasVoted = opinions.some(
+    $: userOpinion = opinions.find(
         (op) => op.authorTokenId === userProfileTokenId,
     );
+    $: userHasVoted = !!userOpinion;
+
+    let isEditingSource = false;
+    let newSourceUrl = source.sourceUrl;
+    let isUpdatingSource = false;
 
     function getAvatarSvg(tokenId: string, size = 40): string {
         return jdenticon.toSvg(tokenId, size);
@@ -46,13 +64,41 @@
         isVoting = true;
         voteError = null;
         try {
-            await voteOnSource(source.id, isPositive);
-            console.log("Vote submitted");
+            if (userHasVoted && userOpinion) {
+                // Update existing vote
+                await updateSourceVote(userOpinion.id, source.id, isPositive);
+                console.log("Vote updated");
+            } else {
+                // New vote
+                await voteOnSource(source.id, isPositive);
+                console.log("Vote submitted");
+            }
         } catch (err: any) {
             console.error("Error voting:", err);
             voteError = err?.message || "Failed to vote";
         } finally {
             isVoting = false;
+        }
+    }
+
+    async function handleUpdateSource() {
+        if (!userProfileTokenId || !newSourceUrl.trim()) return;
+
+        isUpdatingSource = true;
+        voteError = null;
+        try {
+            await updateFileSource(
+                source.id,
+                source.fileHash,
+                newSourceUrl.trim(),
+            );
+            console.log("Source updated");
+            isEditingSource = false;
+        } catch (err: any) {
+            console.error("Error updating source:", err);
+            voteError = err?.message || "Failed to update source";
+        } finally {
+            isUpdatingSource = false;
         }
     }
 
@@ -138,48 +184,101 @@
                     Download Source:
                 </div>
                 <div class="flex items-center gap-2">
-                    <a
-                        href={source.sourceUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        class="text-sm text-blue-400 hover:underline break-all font-mono flex items-center gap-1"
-                    >
-                        {source.sourceUrl}
-                        <ExternalLink class="w-3 h-3 flex-shrink-0" />
-                    </a>
+                    {#if isEditingSource}
+                        <div class="flex-1 flex gap-2">
+                            <Input
+                                bind:value={newSourceUrl}
+                                placeholder="New source URL"
+                                class="h-8 text-sm font-mono"
+                                disabled={isUpdatingSource}
+                            />
+                            <Button
+                                size="sm"
+                                variant="ghost"
+                                class="h-8 w-8 p-0 text-green-500"
+                                on:click={handleUpdateSource}
+                                disabled={isUpdatingSource ||
+                                    !newSourceUrl.trim() ||
+                                    newSourceUrl === source.sourceUrl}
+                            >
+                                <Check class="w-4 h-4" />
+                            </Button>
+                            <Button
+                                size="sm"
+                                variant="ghost"
+                                class="h-8 w-8 p-0 text-red-500"
+                                on:click={() => {
+                                    isEditingSource = false;
+                                    newSourceUrl = source.sourceUrl;
+                                }}
+                                disabled={isUpdatingSource}
+                            >
+                                <X class="w-4 h-4" />
+                            </Button>
+                        </div>
+                    {:else}
+                        <a
+                            href={source.sourceUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            class="text-sm text-blue-400 hover:underline break-all font-mono flex items-center gap-1"
+                        >
+                            {source.sourceUrl}
+                            <ExternalLink class="w-3 h-3 flex-shrink-0" />
+                        </a>
+                        {#if source.ownerTokenId === userProfileTokenId}
+                            <button
+                                on:click={() => (isEditingSource = true)}
+                                class="p-1 hover:bg-secondary rounded text-muted-foreground hover:text-foreground"
+                                title="Edit source URL"
+                            >
+                                <Edit2 class="w-3 h-3" />
+                            </button>
+                        {/if}
+                    {/if}
                 </div>
             </div>
 
             <!-- Voting Section -->
             <div class="flex items-center gap-4 flex-wrap">
                 <!-- Vote Buttons -->
-                {#if userProfileTokenId && !userHasVoted}
-                    <div class="flex gap-2">
+                {#if userProfileTokenId}
+                    <div class="flex gap-2 items-center">
                         <Button
-                            variant="outline"
+                            variant={userOpinion?.isPositive
+                                ? "default"
+                                : "outline"}
                             size="sm"
                             on:click={() => handleVote(true)}
-                            disabled={isVoting}
-                            class="text-xs"
+                            disabled={isVoting ||
+                                (userHasVoted && userOpinion?.isPositive)}
+                            class="text-xs h-8"
                         >
                             <ThumbsUp class="w-3 h-3 mr-1" />
-                            Verify
+                            {userHasVoted
+                                ? userOpinion?.isPositive
+                                    ? "Verified"
+                                    : "Change to Verify"
+                                : "Verify"}
                         </Button>
                         <Button
-                            variant="outline"
+                            variant={userOpinion && !userOpinion.isPositive
+                                ? "default"
+                                : "outline"}
                             size="sm"
                             on:click={() => handleVote(false)}
-                            disabled={isVoting}
-                            class="text-xs"
+                            disabled={isVoting ||
+                                (userHasVoted && !userOpinion?.isPositive)}
+                            class="text-xs h-8"
                         >
                             <ThumbsDown class="w-3 h-3 mr-1" />
-                            Flag Bad
+                            {userHasVoted
+                                ? !userOpinion?.isPositive
+                                    ? "Flagged"
+                                    : "Change to Flag"
+                                : "Flag Bad"}
                         </Button>
                     </div>
-                {:else if userHasVoted}
-                    <span class="text-xs text-muted-foreground">
-                        ✓ You've voted on this source
-                    </span>
                 {/if}
 
                 <!-- Score Display -->
