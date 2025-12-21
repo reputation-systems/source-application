@@ -23,6 +23,8 @@
     import * as jdenticon from "jdenticon";
     import { get } from "svelte/store";
     import { web_explorer_uri_tx, web_explorer_uri_tkn } from "$lib/ergo/envs";
+    import { page } from "$app/stores";
+    import { goto } from "$app/navigation";
 
     export let source: FileSource;
     export let opinions: SourceOpinion[] = [];
@@ -129,6 +131,22 @@
     }
 
     $: statusBadge = getStatusBadge();
+
+    function navigateToProfile(tokenId: string) {
+        const url = new URL($page.url);
+        url.searchParams.set("profile", tokenId);
+        url.searchParams.set("tab", "profile");
+        url.searchParams.delete("search");
+        goto(url.toString(), { keepFocus: true, noScroll: true });
+    }
+
+    function navigateToSearch(fileHash: string) {
+        const url = new URL($page.url);
+        url.searchParams.set("search", fileHash);
+        url.searchParams.set("tab", "search");
+        url.searchParams.delete("profile");
+        goto(url.toString(), { keepFocus: true, noScroll: true });
+    }
 </script>
 
 <div
@@ -136,21 +154,33 @@
 >
     <div class="flex items-start gap-4">
         <!-- Owner Avatar -->
-        <div class="flex-shrink-0">
+        <button
+            class="flex-shrink-0 hover:opacity-80 transition-opacity"
+            on:click={() => navigateToProfile(source.ownerTokenId)}
+            title="View profile sources"
+        >
             {@html getAvatarSvg(source.ownerTokenId, 48)}
-        </div>
+        </button>
 
         <!-- Main Content -->
         <div class="flex-1 min-w-0">
             <!-- Header: Owner + Status -->
             <div class="flex items-center gap-2 mb-2 flex-wrap">
+                <button
+                    on:click={() => navigateToProfile(source.ownerTokenId)}
+                    class="text-sm font-medium text-primary hover:underline"
+                    title="View profile sources"
+                >
+                    @{source.ownerTokenId.slice(0, 8)}...
+                </button>
                 <a
                     href={`${get(web_explorer_uri_tkn)}${source.ownerTokenId}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    class="text-sm font-medium text-primary hover:underline"
+                    class="text-muted-foreground hover:text-primary"
+                    title="View on Explorer"
                 >
-                    @{source.ownerTokenId.slice(0, 8)}...
+                    <ExternalLink class="w-3 h-3" />
                 </a>
                 <span class="text-xs px-2 py-0.5 rounded {statusBadge.color}">
                     {statusBadge.text}
@@ -164,11 +194,13 @@
             <div class="mb-3">
                 <div class="text-xs text-muted-foreground mb-1">File Hash:</div>
                 <div class="flex items-center gap-2">
-                    <code
-                        class="text-sm bg-secondary px-2 py-1 rounded font-mono break-all"
+                    <button
+                        on:click={() => navigateToSearch(source.fileHash)}
+                        class="text-sm bg-secondary px-2 py-1 rounded font-mono break-all hover:bg-secondary/80 text-left"
+                        title="Search for this hash"
                     >
                         {source.fileHash}
-                    </code>
+                    </button>
                     <button
                         on:click={() => copyToClipboard(source.fileHash)}
                         class="p-1 hover:bg-secondary rounded"
