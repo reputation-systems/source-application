@@ -57,7 +57,7 @@ export async function createProfileBox(): Promise<string> {
  * Gets the main box (the one with the most tokens) from the 'reputation_proof' store.
  * If the store is empty, it attempts to create the initial profile proof.
  */
-async function getOrCreateProfileBox(): Promise<RPBox | null> {
+async function getOrCreateProfileBox(r4?: string, r5?: string): Promise<RPBox | null> {
     const proof = get(reputation_proof);
 
     if (!proof || !proof.current_boxes || proof.current_boxes.length === 0) {
@@ -65,6 +65,18 @@ async function getOrCreateProfileBox(): Promise<RPBox | null> {
         await createProfileBox();
         return null;
     } else {
+        // If r4 and r5 are provided, try to find a specific box
+        if (r4 && r5) {
+            const specificBox = proof.current_boxes.find(box =>
+                box.type.tokenId === r4 &&
+                box.object_pointer === r5
+            );
+            if (specificBox) {
+                console.log("Using specific box as input:", specificBox.box_id, "for R4/R5:", r4, r5);
+                return specificBox;
+            }
+        }
+
         const mainBox = proof.current_boxes.find(box =>
             box.type.tokenId === PROFILE_TYPE_NFT_ID &&
             box.object_pointer === proof.token_id
@@ -143,16 +155,10 @@ export async function updateFileSource(
 ): Promise<string> {
     console.log("API: updateFileSource", { oldBoxId, fileHash, newSourceUrl });
 
-    const inputProofBox = await getOrCreateProfileBox();
+    const inputProofBox = await getOrCreateProfileBox(FILE_SOURCE_TYPE_NFT_ID, fileHash);
     if (!inputProofBox) {
         throw new Error("Profile box required but not available yet.");
     }
-
-    // TODO: In a complete implementation, we would need to:
-    // 1. Fetch the old box and verify ownership
-    // 2. Include it as an additional input in the transaction
-    // 3. Create a new box with the same R5 (hash) but new R9 (URL)
-    // For now, this is a simplified version that just creates a new box
 
     const tx = await generate_reputation_proof(
         1,
@@ -210,13 +216,10 @@ export async function updateSourceVote(
 ): Promise<string> {
     console.log("API: updateSourceVote", { oldVoteBoxId, sourceBoxId, isPositive });
 
-    const inputProofBox = await getOrCreateProfileBox();
+    const inputProofBox = await getOrCreateProfileBox(SOURCE_OPINION_TYPE_NFT_ID, sourceBoxId);
     if (!inputProofBox) {
         throw new Error("Profile box required but not available yet.");
     }
-
-    // TODO: Similar to updateFileSource, this would need to spend the old box
-    // For now, simplified version
 
     const tx = await generate_reputation_proof(
         1,
