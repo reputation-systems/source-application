@@ -6,7 +6,7 @@ import {
 } from './envs';
 import { ergo_tree_hash } from './contract';
 import { ErgoAddress, SByte, SColl } from '@fleet-sdk/core';
-import { type RPBox, type TypeNFT, type ReputationProof, ApiBox } from './object';
+import { type RPBox, type TypeNFT, type ReputationProof, type ApiBox } from './object';
 import { reputation_proof } from './store';
 
 
