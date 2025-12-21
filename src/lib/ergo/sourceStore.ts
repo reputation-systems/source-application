@@ -1,0 +1,315 @@
+import { writable, get } from 'svelte/store';
+import { reputation_proof } from './store';
+import { generate_reputation_proof } from './submit';
+import { type RPBox } from '$lib/ergo/object';
+import {
+    type FileSource,
+    type SourceOpinion,
+    type ProfileOpinion,
+    type FileSourceWithScore,
+    aggregateSourceScore
+} from './sourceObject';
+import {
+    fetchFileSourcesByHash,
+    fetchSourceOpinions,
+    fetchProfileOpinions,
+    fetchAllFileSources
+} from './sourceFetch';
+import {
+    FILE_SOURCE_TYPE_NFT_ID,
+    SOURCE_OPINION_TYPE_NFT_ID,
+    PROFILE_OPINION_TYPE_NFT_ID,
+    PROFILE_TOTAL_SUPPLY,
+    PROFILE_TYPE_NFT_ID,
+} from './envs';
+
+// --- PROFILE MANAGEMENT ---
+
+/**
+ * Creates a user profile box (same as forum).
+ */
+export async function createProfileBox(): Promise<string> {
+    const profileTxId = await generate_reputation_proof(
+        PROFILE_TOTAL_SUPPLY,
+        PROFILE_TOTAL_SUPPLY,
+        PROFILE_TYPE_NFT_ID,
+        undefined,
+        true,
+        { name: "Anon" },
+        false, // Profile box should NOT be locked
+        undefined
+    );
+
+    if (!profileTxId) {
+        throw new Error("Fatal error: The profile creation transaction failed to send.");
+    }
+
+    console.warn(
+        "User profile not found. A new one has been created. Please wait ~2 minutes for the transaction to confirm and try again."
+    );
+
+    return profileTxId;
+}
+
+/**
+ * Gets the main box (the one with the most tokens) from the 'reputation_proof' store.
+ * If the store is empty, it attempts to create the initial profile proof.
+ */
+async function getOrCreateProfileBox(): Promise<RPBox | null> {
+    const proof = get(reputation_proof);
+
+    if (!proof || !proof.current_boxes || proof.current_boxes.length === 0) {
+        console.log("No user reputation proof found. Creating profile proof...");
+        await createProfileBox();
+        return null;
+    } else {
+        const mainBox = proof.current_boxes[0];
+
+        if (mainBox.is_locked) {
+            throw new Error("Error: Your main profile box is locked (is_locked=true) and cannot be spent.");
+        }
+        if (mainBox.token_amount < 1) {
+            throw new Error("Error: You do not have enough reputation tokens left in your main box to perform this action.");
+        }
+
+        console.log(
+            "Using existing profile box as input:",
+            mainBox.box_id,
+            "with profile token:",
+            mainBox.token_id
+        );
+        return mainBox;
+    }
+}
+
+// --- SVELTE STORES ---
+
+export const fileSources = writable<FileSource[]>([]);
+export const currentSearchHash = writable<string>("");
+export const sourceOpinions = writable<Map<string, SourceOpinion[]>>(new Map());
+export const profileOpinions = writable<Map<string, ProfileOpinion[]>>(new Map());
+export const isLoading = writable<boolean>(false);
+export const error = writable<string | null>(null);
+
+// --- TRANSACTION FUNCTIONS ---
+
+/**
+ * Add a new FILE_SOURCE box.
+ * Creates a box with R5=fileHash, R9=sourceUrl.
+ */
+export async function addFileSource(fileHash: string, sourceUrl: string): Promise<string> {
+    console.log("API: addFileSource", { fileHash, sourceUrl });
+
+    const inputProofBox = await getOrCreateProfileBox();
+    if (!inputProofBox) {
+        throw new Error("Profile box required but not available yet. Please wait for profile creation to confirm.");
+    }
+
+    const tx = await generate_reputation_proof(
+        1,
+        PROFILE_TOTAL_SUPPLY,
+        FILE_SOURCE_TYPE_NFT_ID,
+        fileHash,           // R5: file hash
+        true,               // R8: not used for FILE_SOURCE, but required by function
+        sourceUrl,          // R9: source URL
+        false,              // R6: unlocked (false)
+        inputProofBox
+    );
+
+    if (!tx) throw new Error("File source transaction failed.");
+    console.log("File source transaction sent, ID:", tx);
+
+    return tx;
+}
+
+/**
+ * Update a FILE_SOURCE box (spend old, create new with same hash but new URL).
+ * The old box must be owned by the current user.
+ */
+export async function updateFileSource(
+    oldBoxId: string,
+    fileHash: string,
+    newSourceUrl: string
+): Promise<string> {
+    console.log("API: updateFileSource", { oldBoxId, fileHash, newSourceUrl });
+
+    const inputProofBox = await getOrCreateProfileBox();
+    if (!inputProofBox) {
+        throw new Error("Profile box required but not available yet.");
+    }
+
+    // TODO: In a complete implementation, we would need to:
+    // 1. Fetch the old box and verify ownership
+    // 2. Include it as an additional input in the transaction
+    // 3. Create a new box with the same R5 (hash) but new R9 (URL)
+    // For now, this is a simplified version that just creates a new box
+
+    const tx = await generate_reputation_proof(
+        1,
+        PROFILE_TOTAL_SUPPLY,
+        FILE_SOURCE_TYPE_NFT_ID,
+        fileHash,
+        true,
+        newSourceUrl,
+        false,
+        inputProofBox
+    );
+
+    if (!tx) throw new Error("File source update transaction failed.");
+    console.log("File source update transaction sent, ID:", tx);
+
+    return tx;
+}
+
+/**
+ * Vote on a specific FILE_SOURCE box.
+ * Creates a SOURCE_OPINION box with R5=sourceBoxId, R8=isPositive.
+ */
+export async function voteOnSource(sourceBoxId: string, isPositive: boolean): Promise<string> {
+    console.log("API: voteOnSource", { sourceBoxId, isPositive });
+
+    const inputProofBox = await getOrCreateProfileBox();
+    if (!inputProofBox) {
+        throw new Error("Profile box required but not available yet.");
+    }
+
+    const tx = await generate_reputation_proof(
+        1,
+        PROFILE_TOTAL_SUPPLY,
+        SOURCE_OPINION_TYPE_NFT_ID,
+        sourceBoxId,        // R5: target box ID
+        isPositive,         // R8: positive/negative vote
+        null,               // R9: no content needed
+        true,               // R6: locked (true) - opinions are permanent once cast
+        inputProofBox
+    );
+
+    if (!tx) throw new Error("Source opinion transaction failed.");
+    console.log("Source opinion transaction sent, ID:", tx);
+
+    return tx;
+}
+
+/**
+ * Update an existing vote by spending the old opinion box and creating a new one.
+ */
+export async function updateSourceVote(
+    oldVoteBoxId: string,
+    sourceBoxId: string,
+    isPositive: boolean
+): Promise<string> {
+    console.log("API: updateSourceVote", { oldVoteBoxId, sourceBoxId, isPositive });
+
+    const inputProofBox = await getOrCreateProfileBox();
+    if (!inputProofBox) {
+        throw new Error("Profile box required but not available yet.");
+    }
+
+    // TODO: Similar to updateFileSource, this would need to spend the old box
+    // For now, simplified version
+
+    const tx = await generate_reputation_proof(
+        1,
+        PROFILE_TOTAL_SUPPLY,
+        SOURCE_OPINION_TYPE_NFT_ID,
+        sourceBoxId,
+        isPositive,
+        null,
+        false,              // R6: unlocked to allow updates
+        inputProofBox
+    );
+
+    if (!tx) throw new Error("Source opinion update transaction failed.");
+    console.log("Source opinion update transaction sent, ID:", tx);
+
+    return tx;
+}
+
+/**
+ * Trust or distrust a profile.
+ * Creates a PROFILE_OPINION box with R5=profileTokenId, R8=isTrusted.
+ */
+export async function trustProfile(profileTokenId: string, isTrusted: boolean): Promise<string> {
+    console.log("API: trustProfile", { profileTokenId, isTrusted });
+
+    const inputProofBox = await getOrCreateProfileBox();
+    if (!inputProofBox) {
+        throw new Error("Profile box required but not available yet.");
+    }
+
+    const tx = await generate_reputation_proof(
+        1,
+        PROFILE_TOTAL_SUPPLY,
+        PROFILE_OPINION_TYPE_NFT_ID,
+        profileTokenId,     // R5: target profile token ID
+        isTrusted,          // R8: trust/distrust
+        null,               // R9: no content needed
+        false,              // R6: unlocked (allow trust changes)
+        inputProofBox
+    );
+
+    if (!tx) throw new Error("Profile opinion transaction failed.");
+    console.log("Profile opinion transaction sent, ID:", tx);
+
+    return tx;
+}
+
+// --- STORE ACTIONS ---
+
+/**
+ * Load file sources by hash.
+ */
+export async function searchByHash(fileHash: string) {
+    isLoading.set(true);
+    error.set(null);
+    currentSearchHash.set(fileHash);
+
+    try {
+        const sources = await fetchFileSourcesByHash(fileHash);
+        fileSources.set(sources);
+
+        // Load opinions for each source
+        const opinionsMap = new Map<string, SourceOpinion[]>();
+        for (const source of sources) {
+            const opinions = await fetchSourceOpinions(source.id);
+            opinionsMap.set(source.id, opinions);
+        }
+        sourceOpinions.set(opinionsMap);
+    } catch (err: any) {
+        error.set(err.message || "Error searching file sources.");
+    } finally {
+        isLoading.set(false);
+    }
+}
+
+/**
+ * Load all file sources for browsing.
+ */
+export async function loadAllSources() {
+    isLoading.set(true);
+    error.set(null);
+
+    try {
+        const sources = await fetchAllFileSources(50);
+        fileSources.set(sources);
+    } catch (err: any) {
+        error.set(err.message || "Error loading file sources.");
+    } finally {
+        isLoading.set(false);
+    }
+}
+
+/**
+ * Load profile opinions for a specific profile.
+ */
+export async function loadProfileOpinions(profileTokenId: string) {
+    try {
+        const opinions = await fetchProfileOpinions(profileTokenId);
+        profileOpinions.update(map => {
+            map.set(profileTokenId, opinions);
+            return map;
+        });
+    } catch (err: any) {
+        console.error("Error loading profile opinions:", err);
+    }
+}

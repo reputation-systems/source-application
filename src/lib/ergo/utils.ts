@@ -3,10 +3,8 @@ import {
     ErgoAddress, SByte, SColl, SConstant, SGroupElement,
     type Box,
     type InputBox,
-    type Amount,
-    type TokenEIP4 // <-- Importar TokenEIP4
+    type Amount
 } from '@fleet-sdk/core';
-import type { GameContent } from "../common/game"; // <-- Importar GameContent
 
 export function hexToUtf8(hexString: string): string | null {
     try {
@@ -31,7 +29,7 @@ export function generate_pk_proposition(wallet_pk: string): string {
 }
 
 export function SString(value: string): string {
-    return SConstant(SColl(SByte, stringToBytes('utf8', value)));
+    return SColl(SByte, hexToBytes(value) ?? "").toHex();
 }
 
 export function uint8ArrayToHex(array: Uint8Array): string { 
@@ -159,50 +157,28 @@ export function parseBox(e: Box<Amount>): InputBox {
 }
 
 /**
- * Parsea los detalles del contenido de un juego a partir de un string JSON.
- * @param rawJsonDetails String JSON con los detalles del juego (de R9).
- * @param gameBoxId El ID de la caja, usado como identificador de respaldo.
- * @param nft Datos opcionales del token EIP-4 del NFT del juego.
- * @returns El objeto GameContent parseado.
+ * A utility function to convert a serialized value to its "rendered" format (for debugging/display).
+ * This is a simplification and may not cover all Ergo types.
+ * @param serializedValue The full serialized hex string.
+ * @returns A simplified hex string.
  */
-export function parseGameContent(
-    rawJsonDetails: string | undefined | null,
-    gameBoxId: string, 
-    nft?: TokenEIP4
-): GameContent {
-    const defaultImageUrl = [
-        "https://images5.alphacoders.com/136/thumb-1920-1364878.png",
-        "https://backiee.com/static/wallpapers/560x315/302851.jpg",
-        "https://wallpaperaccess.com/full/5027932.png",
-        "https://wallpaperaccess.com/full/6273500.jpg"
-    ][rawJsonDetails?.length % 4];
-    const defaultTitle = nft?.name || `Game ${gameBoxId.slice(0, 8)}`;
-    const defaultDescription = nft?.description || "No description provided.";
-    let content: GameContent = {
-        rawJsonString: rawJsonDetails || "{}",
-        title: defaultTitle,
-        description: defaultDescription,
-        serviceId: ""
-    };
-
-    if (rawJsonDetails) {
-        try {
-            const parsed = JSON.parse(rawJsonDetails);
-            content = {
-                ...content,
-                title: parsed.title || defaultTitle,
-                description: parsed.description || defaultDescription,
-                serviceId: parsed.serviceId || "",
-                imageURL: parsed.imageURL || parsed.image || defaultImageUrl,
-                webLink: parsed.webLink || parsed.link || undefined,
-                mirrorUrls: parsed.mirrorUrls || undefined,
-            };
-        } catch (error) {
-            console.warn(`Error al parsear rawJsonDetails para el juego ${gameBoxId}. Usando valores por defecto. Error: ${error}`);
-        }
+export function serializedToRendered(serializedValue: string): string {
+    if (serializedValue.startsWith('0e')) {
+        return serializedValue.substring(4);
+    } else if (serializedValue.startsWith('04')) {
+        return serializedValue.substring(2);
     }
-    
-    return content;
+    return serializedValue;
+}
+
+/**
+ * Converts a JavaScript string directly to its "rendered" hex format.
+ * This is a convenience function that combines stringToSerialized and serializedToRendered.
+ * @param value The string to convert.
+ * @returns The simplified, rendered hex string.
+ */
+export function stringToRendered(value: string): string {
+    return serializedToRendered(SString(value));
 }
 
 export function pkHexToBase58Address(pkHex?: string): string {

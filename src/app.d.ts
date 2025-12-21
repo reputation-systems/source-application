@@ -7,6 +7,8 @@ declare global {
 		// interface PageData {}
 		// interface Platform {}
 	}
+	var ergo: any;
+	var ergoConnector: any;
 }
 
-export {};
+export { };

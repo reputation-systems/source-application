@@ -1,130 +1,132 @@
 <script lang="ts">
-    import * as Dialog from "$lib/components/ui/dialog";
-    import { Button } from "$lib/components/ui/button";
-    import { Input } from "$lib/components/ui/input";
-    import { Label } from "$lib/components/ui/label";
+    import { Button } from "$lib/components/ui/button/index.js";
+    import { Input } from "$lib/components/ui/input/index.js";
+    import { Label } from "$lib/components/ui/label/index.js";
+    import { X, RotateCcw } from "lucide-svelte"; // Importamos icono para reset
     import {
+        explorer_uri,
         web_explorer_uri_tx,
-        web_explorer_uri_token,
         web_explorer_uri_addr,
-    } from "$lib/common/store";
-    import {
-        DEFAULT_EXPLORER_URI_TX,
-        DEFAULT_EXPLORER_URI_TOKEN,
-        DEFAULT_EXPLORER_URI_ADDR,
-    } from "$lib/common/constants";
-    import { Settings, RotateCcw } from "lucide-svelte";
+        web_explorer_uri_tkn,
+    } from "$lib/ergo/envs";
 
-    export let open = false;
+    export let show = false;
 
-    // Local copies for editing
-    let txUri = $web_explorer_uri_tx;
-    let tokenUri = $web_explorer_uri_token;
-    let addrUri = $web_explorer_uri_addr;
+    // Valores por defecto definidos en constantes para fácil mantenimiento
+    const DEFAULTS = {
+        api: "https://api.ergoplatform.com",
+        tx: "https://sigmaspace.io/en/transaction/",
+        addr: "https://sigmaspace.io/en/address/",
+        tkn: "https://sigmaspace.io/en/token/",
+    };
 
-    // Sync with stores when they change
-    $: txUri = $web_explorer_uri_tx;
-    $: tokenUri = $web_explorer_uri_token;
-    $: addrUri = $web_explorer_uri_addr;
-
-    function saveSettings() {
-        web_explorer_uri_tx.set(txUri);
-        web_explorer_uri_token.set(tokenUri);
-        web_explorer_uri_addr.set(addrUri);
-        open = false;
+    function close() {
+        show = false;
     }
 
-    function resetToDefaults() {
-        txUri = DEFAULT_EXPLORER_URI_TX;
-        tokenUri = DEFAULT_EXPLORER_URI_TOKEN;
-        addrUri = DEFAULT_EXPLORER_URI_ADDR;
-    }
-
-    function cancel() {
-        // Reset to current store values
-        txUri = $web_explorer_uri_tx;
-        tokenUri = $web_explorer_uri_token;
-        addrUri = $web_explorer_uri_addr;
-        open = false;
+    // Función para restaurar valores
+    function restoreDefaults() {
+        $explorer_uri = DEFAULTS.api;
+        $web_explorer_uri_tx = DEFAULTS.tx;
+        $web_explorer_uri_addr = DEFAULTS.addr;
+        $web_explorer_uri_tkn = DEFAULTS.tkn;
     }
 </script>
 
-<Dialog.Root bind:open>
-    <Dialog.Content class="sm:max-w-[600px]">
-        <Dialog.Header>
-            <Dialog.Title class="flex items-center gap-2">
-                <Settings class="h-5 w-5" />
-                Web Explorer Configuration
-            </Dialog.Title>
-            <Dialog.Description>
-                Configure the blockchain explorer URLs used to view
-                transactions, tokens, and addresses.
-            </Dialog.Description>
-        </Dialog.Header>
+{#if show}
+    <button class="modal-backdrop" on:click={close} aria-label="Close settings"
+    ></button>
 
-        <div class="space-y-4 py-4">
+    <div class="modal" role="dialog" aria-modal="true" aria-label="Settings">
+        <div class="flex justify-between items-center mb-6">
+            <h2 class="text-xl font-bold">Settings</h2>
+            <Button variant="ghost" size="icon" on:click={close}>
+                <X class="w-5 h-5" />
+            </Button>
+        </div>
+
+        <div class="space-y-6">
             <div class="space-y-2">
-                <Label for="tx-uri">Transaction URL</Label>
-                <Input
-                    id="tx-uri"
-                    type="url"
-                    bind:value={txUri}
-                    placeholder={DEFAULT_EXPLORER_URI_TX}
-                />
+                <Label for="explorer-api">Explorer API URI</Label>
+                <div class="flex gap-2">
+                    <Input
+                        id="explorer-api"
+                        bind:value={$explorer_uri}
+                        placeholder={DEFAULTS.api}
+                    />
+                </div>
                 <p class="text-xs text-muted-foreground">
-                    Example: {DEFAULT_EXPLORER_URI_TX}
+                    The base URL for the Ergo Explorer API.
                 </p>
             </div>
 
             <div class="space-y-2">
-                <Label for="token-uri">Token URL</Label>
+                <Label for="web-tx">Transaction Explorer URL</Label>
                 <Input
-                    id="token-uri"
-                    type="url"
-                    bind:value={tokenUri}
-                    placeholder={DEFAULT_EXPLORER_URI_TOKEN}
+                    id="web-tx"
+                    bind:value={$web_explorer_uri_tx}
+                    placeholder={DEFAULTS.tx}
                 />
                 <p class="text-xs text-muted-foreground">
-                    Example: {DEFAULT_EXPLORER_URI_TOKEN}
+                    URL prefix for viewing transactions.
                 </p>
             </div>
 
             <div class="space-y-2">
-                <Label for="addr-uri">Address URL</Label>
+                <Label for="web-addr">Address Explorer URL</Label>
                 <Input
-                    id="addr-uri"
-                    type="url"
-                    bind:value={addrUri}
-                    placeholder={DEFAULT_EXPLORER_URI_ADDR}
+                    id="web-addr"
+                    bind:value={$web_explorer_uri_addr}
+                    placeholder={DEFAULTS.addr}
                 />
                 <p class="text-xs text-muted-foreground">
-                    Example: {DEFAULT_EXPLORER_URI_ADDR}
+                    URL prefix for viewing addresses.
                 </p>
             </div>
 
-            <div class="pt-2">
-                <Button
-                    variant="outline"
-                    size="sm"
-                    on:click={resetToDefaults}
-                    class="w-full"
-                >
-                    <RotateCcw class="h-4 w-4 mr-2" />
-                    Restore Default Values
-                </Button>
+            <div class="space-y-2">
+                <Label for="web-tkn">Token Explorer URL</Label>
+                <Input
+                    id="web-tkn"
+                    bind:value={$web_explorer_uri_tkn}
+                    placeholder={DEFAULTS.tkn}
+                />
+                <p class="text-xs text-muted-foreground">
+                    URL prefix for viewing tokens.
+                </p>
             </div>
         </div>
 
-        <Dialog.Footer class="flex gap-2">
-            <Button variant="outline" on:click={cancel}>Cancel</Button>
-            <Button on:click={saveSettings}>Save Configuration</Button>
-        </Dialog.Footer>
-    </Dialog.Content>
-</Dialog.Root>
+        <div
+            class="mt-8 flex justify-between items-center pt-4 border-t border-border"
+        >
+            <Button
+                variant="outline"
+                size="sm"
+                on:click={restoreDefaults}
+                class="text-muted-foreground hover:text-foreground"
+            >
+                <RotateCcw class="w-4 h-4 mr-2" />
+                Restore Defaults
+            </Button>
 
-<style>
-    :global(.settings-modal) {
-        max-height: 90vh;
-        overflow-y: auto;
+            <Button on:click={close}>Done</Button>
+        </div>
+    </div>
+{/if}
+
+<style lang="postcss">
+    .modal-backdrop {
+        /* Backdrop oscuro al 80% */
+        @apply fixed inset-0 bg-black/80 z-[70] cursor-default backdrop-blur-sm;
+    }
+
+    .modal {
+        /* - max-w-2xl: Más ancho.
+           - bg-background: Color sólido del sistema (blanco en light, oscuro en dark) sin transparencia.
+           - text-foreground: Color de texto correcto.
+        */
+        @apply fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2
+        bg-background text-foreground border border-border rounded-xl p-6 w-full max-w-2xl z-[80] shadow-2xl;
     }
 </style>
