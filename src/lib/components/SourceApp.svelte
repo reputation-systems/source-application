@@ -49,7 +49,7 @@
         try {
             const tx = await addFileSource(
                 newFileHash.trim(),
-                newSourceUrl.trim()
+                newSourceUrl.trim(),
             );
             console.log("Source added, tx:", tx);
             newFileHash = "";
@@ -83,7 +83,7 @@
         }
     });
 
-    $: if (connected && hasProfile && $fileSources.length === 0) {
+    $: if (connected && hasProfile && Object.keys($fileSources).length === 0) {
         loadAllSources();
     }
 </script>
@@ -94,7 +94,7 @@
         <button
             class="tab-button {activeTab === 'browse' ? 'active' : ''}"
             on:click={() => {
-                activeTab = 'browse';
+                activeTab = "browse";
                 if (connected && hasProfile) loadAllSources();
             }}
         >
@@ -102,14 +102,14 @@
         </button>
         <button
             class="tab-button {activeTab === 'search' ? 'active' : ''}"
-            on:click={() => (activeTab = 'search')}
+            on:click={() => (activeTab = "search")}
         >
             <Search class="w-4 h-4 mr-1" />
             Search by Hash
         </button>
         <button
             class="tab-button {activeTab === 'add' ? 'active' : ''}"
-            on:click={() => (activeTab = 'add')}
+            on:click={() => (activeTab = "add")}
         >
             <Plus class="w-4 h-4 mr-1" />
             Add Source
@@ -194,8 +194,12 @@
         <div class="bg-card p-6 rounded-lg border mb-6">
             <h3 class="text-xl font-semibold mb-4">Add New File Source</h3>
 
-            <div class="bg-amber-500/10 border border-amber-500/20 p-3 rounded-lg mb-4 flex gap-2">
-                <AlertTriangle class="w-5 h-5 text-amber-400 flex-shrink-0 mt-0.5" />
+            <div
+                class="bg-amber-500/10 border border-amber-500/20 p-3 rounded-lg mb-4 flex gap-2"
+            >
+                <AlertTriangle
+                    class="w-5 h-5 text-amber-400 flex-shrink-0 mt-0.5"
+                />
                 <div class="text-sm text-amber-200">
                     <strong>Security Warning:</strong> Always verify URLs before
                     downloading. Malicious actors may post harmful links. The URL
@@ -255,26 +259,33 @@
         <div class="text-center py-8">
             <p class="text-muted-foreground">Loading sources...</p>
         </div>
-    {:else if $fileSources.length === 0}
-        <div class="text-center py-8">
-            <p class="text-muted-foreground">
-                {activeTab === "search"
-                    ? "No sources found for this hash"
-                    : "No file sources yet. Be the first to add one!"}
-            </p>
-        </div>
     {:else}
-        <div class="space-y-4">
-            {#each $fileSources as source (source.id)}
-                <FileSourceCard
-                    {source}
-                    opinions={$sourceOpinions.get(source.id) || []}
-                    userProfileTokenId={hasProfile
-                        ? $reputation_proof?.token_id
-                        : null}
-                />
-            {/each}
-        </div>
+        {@const sources =
+            activeTab === "search"
+                ? $fileSources[$currentSearchHash]?.data || []
+                : $fileSources["ALL"]?.data || []}
+
+        {#if sources.length === 0}
+            <div class="text-center py-8">
+                <p class="text-muted-foreground">
+                    {activeTab === "search"
+                        ? "No sources found for this hash"
+                        : "No file sources yet. Be the first to add one!"}
+                </p>
+            </div>
+        {:else}
+            <div class="space-y-4">
+                {#each sources as source (source.id)}
+                    <FileSourceCard
+                        {source}
+                        opinions={$sourceOpinions[source.id]?.data || []}
+                        userProfileTokenId={hasProfile
+                            ? $reputation_proof?.token_id
+                            : null}
+                    />
+                {/each}
+            </div>
+        {/if}
     {/if}
 </div>
 

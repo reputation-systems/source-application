@@ -5,9 +5,7 @@ import { type RPBox } from '$lib/ergo/object';
 import {
     type FileSource,
     type SourceOpinion,
-    type ProfileOpinion,
-    type FileSourceWithScore,
-    aggregateSourceScore
+    type ProfileOpinion
 } from './sourceObject';
 import {
     fetchFileSourcesByHash,
@@ -82,12 +80,58 @@ async function getOrCreateProfileBox(): Promise<RPBox | null> {
     }
 }
 
+// --- CACHE CONFIGURATION ---
+const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes in milliseconds
+
+export interface CachedData<T> {
+    [key: string]: {
+        data: T;
+        timestamp: number;
+    }
+}
+
+/**
+ * Helper to create a writable store that persists to localStorage.
+ */
+function createPersistentStore<T>(key: string, initialValue: T) {
+    const isBrowser = typeof window !== 'undefined';
+    let initial = initialValue;
+
+    if (isBrowser) {
+        try {
+            const saved = localStorage.getItem(key);
+            if (saved) {
+                initial = JSON.parse(saved);
+            }
+        } catch (e) {
+            console.warn(`Error loading ${key} from localStorage:`, e);
+        }
+    }
+
+    const { subscribe, set, update } = writable<T>(initial);
+
+    return {
+        subscribe,
+        set: (value: T) => {
+            if (isBrowser) localStorage.setItem(key, JSON.stringify(value));
+            set(value);
+        },
+        update: (fn: (value: T) => T) => {
+            update(current => {
+                const newValue = fn(current);
+                if (isBrowser) localStorage.setItem(key, JSON.stringify(newValue));
+                return newValue;
+            });
+        }
+    };
+}
+
 // --- SVELTE STORES ---
 
-export const fileSources = writable<FileSource[]>([]);
+export const fileSources = createPersistentStore<CachedData<FileSource[]>>('source_file_sources', {});
 export const currentSearchHash = writable<string>("");
-export const sourceOpinions = writable<Map<string, SourceOpinion[]>>(new Map());
-export const profileOpinions = writable<Map<string, ProfileOpinion[]>>(new Map());
+export const sourceOpinions = createPersistentStore<CachedData<SourceOpinion[]>>('source_opinions', {});
+export const profileOpinions = createPersistentStore<CachedData<ProfileOpinion[]>>('source_profile_opinions', {});
 export const isLoading = writable<boolean>(false);
 export const error = writable<string | null>(null);
 
@@ -254,27 +298,52 @@ export async function trustProfile(profileTokenId: string, isTrusted: boolean): 
     return tx;
 }
 
+/**
+ * Helper to check if a cache entry is valid.
+ */
+function isEntryValid(entry: { timestamp: number } | undefined): boolean {
+    if (!entry) return false;
+    return (Date.now() - entry.timestamp) < CACHE_DURATION;
+}
+
 // --- STORE ACTIONS ---
 
 /**
  * Load file sources by hash.
  */
 export async function searchByHash(fileHash: string) {
+    const currentFileSources = get(fileSources);
+
+    if (isEntryValid(currentFileSources[fileHash])) {
+        console.log(`Using cache for hash: ${fileHash}`);
+        currentSearchHash.set(fileHash);
+        return;
+    }
+
     isLoading.set(true);
     error.set(null);
     currentSearchHash.set(fileHash);
 
     try {
         const sources = await fetchFileSourcesByHash(fileHash);
-        fileSources.set(sources);
+
+        fileSources.update(s => {
+            s[fileHash] = { data: sources, timestamp: Date.now() };
+            return s;
+        });
 
         // Load opinions for each source
-        const opinionsMap = new Map<string, SourceOpinion[]>();
+        const currentOpinions = get(sourceOpinions);
         for (const source of sources) {
-            const opinions = await fetchSourceOpinions(source.id);
-            opinionsMap.set(source.id, opinions);
+            // Only fetch if not in cache or cache expired
+            if (!isEntryValid(currentOpinions[source.id])) {
+                const opinions = await fetchSourceOpinions(source.id);
+                sourceOpinions.update(s => {
+                    s[source.id] = { data: opinions, timestamp: Date.now() };
+                    return s;
+                });
+            }
         }
-        sourceOpinions.set(opinionsMap);
     } catch (err: any) {
         error.set(err.message || "Error searching file sources.");
     } finally {
@@ -286,12 +355,21 @@ export async function searchByHash(fileHash: string) {
  * Load all file sources for browsing.
  */
 export async function loadAllSources() {
+    const currentFileSources = get(fileSources);
+    if (isEntryValid(currentFileSources["ALL"])) {
+        console.log("Using cache for all sources");
+        return;
+    }
+
     isLoading.set(true);
     error.set(null);
 
     try {
         const sources = await fetchAllFileSources(50);
-        fileSources.set(sources);
+        fileSources.update(s => {
+            s["ALL"] = { data: sources, timestamp: Date.now() };
+            return s;
+        });
     } catch (err: any) {
         error.set(err.message || "Error loading file sources.");
     } finally {
@@ -303,11 +381,17 @@ export async function loadAllSources() {
  * Load profile opinions for a specific profile.
  */
 export async function loadProfileOpinions(profileTokenId: string) {
+    const currentProfileOpinions = get(profileOpinions);
+    if (isEntryValid(currentProfileOpinions[profileTokenId])) {
+        console.log(`Using cache for profile opinions: ${profileTokenId}`);
+        return;
+    }
+
     try {
         const opinions = await fetchProfileOpinions(profileTokenId);
-        profileOpinions.update(map => {
-            map.set(profileTokenId, opinions);
-            return map;
+        profileOpinions.update(s => {
+            s[profileTokenId] = { data: opinions, timestamp: Date.now() };
+            return s;
         });
     } catch (err: any) {
         console.error("Error loading profile opinions:", err);
