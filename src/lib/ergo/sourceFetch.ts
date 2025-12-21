@@ -252,7 +252,7 @@ export async function fetchAllFileSources(limit: number = 50): Promise<FileSourc
             try {
                 const rawR5 = box.additionalRegisters.R5?.renderedValue;
                 if (rawR5) {
-                    fileHash = hexToUtf8(rawR5) ?? "[Unknown]";
+                    fileHash = rawR5;
                 }
             } catch (e) {
                 console.warn(`Error decoding R5 for box ${box.boxId}`, e);

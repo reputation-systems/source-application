@@ -1,5 +1,14 @@
 import { writable, get } from 'svelte/store';
-import { reputation_proof } from './store';
+import {
+    reputation_proof,
+    fileSources,
+    currentSearchHash,
+    sourceOpinions,
+    profileOpinions,
+    isLoading,
+    error,
+    CACHE_DURATION
+} from './store';
 import { generate_reputation_proof } from './submit';
 import { type RPBox } from '$lib/ergo/object';
 import {
@@ -80,60 +89,13 @@ async function getOrCreateProfileBox(): Promise<RPBox | null> {
     }
 }
 
-// --- CACHE CONFIGURATION ---
-const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes in milliseconds
-
-export interface CachedData<T> {
-    [key: string]: {
-        data: T;
-        timestamp: number;
-    }
-}
-
 /**
- * Helper to create a writable store that persists to localStorage.
+ * Helper to check if a cache entry is valid.
  */
-function createPersistentStore<T>(key: string, initialValue: T) {
-    const isBrowser = typeof window !== 'undefined';
-    let initial = initialValue;
-
-    if (isBrowser) {
-        try {
-            const saved = localStorage.getItem(key);
-            if (saved) {
-                initial = JSON.parse(saved);
-            }
-        } catch (e) {
-            console.warn(`Error loading ${key} from localStorage:`, e);
-        }
-    }
-
-    const { subscribe, set, update } = writable<T>(initial);
-
-    return {
-        subscribe,
-        set: (value: T) => {
-            if (isBrowser) localStorage.setItem(key, JSON.stringify(value));
-            set(value);
-        },
-        update: (fn: (value: T) => T) => {
-            update(current => {
-                const newValue = fn(current);
-                if (isBrowser) localStorage.setItem(key, JSON.stringify(newValue));
-                return newValue;
-            });
-        }
-    };
+function isEntryValid(entry: { timestamp: number } | undefined): boolean {
+    if (!entry) return false;
+    return (Date.now() - entry.timestamp) < CACHE_DURATION;
 }
-
-// --- SVELTE STORES ---
-
-export const fileSources = createPersistentStore<CachedData<FileSource[]>>('source_file_sources', {});
-export const currentSearchHash = writable<string>("");
-export const sourceOpinions = createPersistentStore<CachedData<SourceOpinion[]>>('source_opinions', {});
-export const profileOpinions = createPersistentStore<CachedData<ProfileOpinion[]>>('source_profile_opinions', {});
-export const isLoading = writable<boolean>(false);
-export const error = writable<string | null>(null);
 
 // --- TRANSACTION FUNCTIONS ---
 
@@ -296,14 +258,6 @@ export async function trustProfile(profileTokenId: string, isTrusted: boolean): 
     console.log("Profile opinion transaction sent, ID:", tx);
 
     return tx;
-}
-
-/**
- * Helper to check if a cache entry is valid.
- */
-function isEntryValid(entry: { timestamp: number } | undefined): boolean {
-    if (!entry) return false;
-    return (Date.now() - entry.timestamp) < CACHE_DURATION;
 }
 
 // --- STORE ACTIONS ---

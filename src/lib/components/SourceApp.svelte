@@ -1,17 +1,19 @@
 <script lang="ts">
     import { onMount } from "svelte";
     import {
-        fileSources,
-        isLoading,
-        error,
-        currentSearchHash,
-        sourceOpinions,
         addFileSource,
         searchByHash,
         loadAllSources,
         createProfileBox,
     } from "$lib/ergo/sourceStore";
-    import { reputation_proof } from "$lib/ergo/store";
+    import {
+        reputation_proof,
+        fileSources,
+        isLoading,
+        error,
+        currentSearchHash,
+        sourceOpinions,
+    } from "$lib/ergo/store";
     import { Button } from "$lib/components/ui/button/index.js";
     import { Input } from "$lib/components/ui/input/index.js";
     import { Label } from "$lib/components/ui/label/index.js";
