@@ -12,10 +12,15 @@
 	import { explorer_uri, web_explorer_uri_tx } from "$lib/ergo/envs";
 	import { User, Settings } from "lucide-svelte";
 	import { get } from "svelte/store";
-	import SourceApp from "$lib/components/SourceApp.svelte";
 	import SettingsModal from "$lib/components/SettingsModal.svelte";
 	import ProfileModal from "$lib/components/ProfileModal.svelte";
 	import { fetchProfile } from "$lib/ergo/profileFetch";
+	import { createProfileBox } from "$lib/ergo/sourceStore";
+	import BrowseSources from "$lib/components/BrowseSources.svelte";
+	import SearchByHash from "$lib/components/SearchByHash.svelte";
+	import AddSource from "$lib/components/AddSource.svelte";
+	import { Search, Plus, UserPlus, LayoutGrid } from "lucide-svelte";
+	import { Button } from "$lib/components/ui/button/index.js";
 
 	export let connect_executed = false;
 
@@ -27,6 +32,14 @@
 
 	let showProfileModal = false;
 	let showSettingsModal = false;
+
+	let activeTab: "browse" | "search" | "add" = "browse";
+	let isCreatingProfile = false;
+	let addError: string | null = null;
+
+	$: hasProfile =
+		$reputation_proof !== null &&
+		$reputation_proof?.current_boxes?.length > 0;
 
 	// Footer text
 	const footerMessages = [
@@ -144,6 +157,19 @@
 		}
 	}
 
+	async function handleCreateProfile() {
+		isCreatingProfile = true;
+		addError = null;
+		try {
+			await createProfileBox();
+		} catch (err: any) {
+			console.error("Error creating profile:", err);
+			addError = err?.message || "Failed to create profile";
+		} finally {
+			isCreatingProfile = false;
+		}
+	}
+
 	$: ergInErgs = $balance ? (Number($balance) / 1_000_000_000).toFixed(4) : 0;
 </script>
 
@@ -151,6 +177,31 @@
 <div class="navbar-container">
 	<div class="navbar-content">
 		<a href="/" class="logo-container">Source Verification</a>
+
+		<div class="flex items-center gap-1 ml-4">
+			<button
+				class="tab-button {activeTab === 'browse' ? 'active' : ''}"
+				on:click={() => (activeTab = "browse")}
+			>
+				<LayoutGrid class="w-4 h-4" />
+				Browse
+			</button>
+			<button
+				class="tab-button {activeTab === 'search' ? 'active' : ''}"
+				on:click={() => (activeTab = "search")}
+			>
+				<Search class="w-4 h-4" />
+				Search
+			</button>
+			<button
+				class="tab-button {activeTab === 'add' ? 'active' : ''}"
+				on:click={() => (activeTab = "add")}
+			>
+				<Plus class="w-4 h-4" />
+				Add
+			</button>
+		</div>
+
 		<div class="flex-1"></div>
 
 		<button
@@ -177,21 +228,49 @@
 
 <main class="container mx-auto px-4 py-8 pb-20">
 	<div class="max-w-6xl mx-auto">
-		{#if profile_creation_tx}
-			<span class="text-muted-foreground">
-				<a
-					href={`${$web_explorer_uri_tx}${profile_creation_tx}`}
-					target="_blank"
-					>Profile creation tx: {profile_creation_tx}</a
+		{#if !connected}
+			<div
+				class="bg-amber-500/10 border border-amber-500/20 p-4 rounded-lg text-center mb-6"
+			>
+				<p class="text-amber-200">
+					Connect your wallet to use the Source Verification system
+				</p>
+			</div>
+		{:else if !hasProfile}
+			<div class="bg-card p-4 rounded-lg border mb-6">
+				<h4 class="font-semibold mb-2">Create Your Profile</h4>
+				<p class="text-sm text-muted-foreground mb-3">
+					You need to create a profile before adding sources or
+					voting. This is a one-time blockchain transaction.
+				</p>
+				<Button
+					on:click={handleCreateProfile}
+					disabled={isCreatingProfile}
+					class="w-full"
 				>
-			</span>
-		{:else if !$reputation_proof || !$reputation_proof.current_boxes || $reputation_proof.current_boxes.length === 0}
-			<p class="text-sm">
-				Tip: Create a profile to add sources and verify files
-			</p>
+					<UserPlus class="w-4 h-4 mr-2" />
+					{isCreatingProfile
+						? "Creating Profile..."
+						: "Create Profile (One-time)"}
+				</Button>
+			</div>
 		{/if}
 
-		<SourceApp connected={$connected} />
+		{#if addError}
+			<div
+				class="bg-red-500/10 border border-red-500/20 p-3 rounded-lg mb-4"
+			>
+				<p class="text-sm text-red-200">{addError}</p>
+			</div>
+		{/if}
+
+		{#if activeTab === "browse"}
+			<BrowseSources connected={$connected} {hasProfile} />
+		{:else if activeTab === "search"}
+			<SearchByHash {hasProfile} />
+		{:else if activeTab === "add"}
+			<AddSource {hasProfile} />
+		{/if}
 	</div>
 </main>
 
@@ -216,6 +295,14 @@
 
 	.user-icon {
 		@apply p-2 rounded-full hover:bg-accent;
+	}
+
+	.tab-button {
+		@apply px-3 py-1.5 text-sm font-medium text-muted-foreground rounded-md hover:text-foreground hover:bg-accent/50 transition-all flex items-center gap-2;
+	}
+
+	.tab-button.active {
+		@apply text-primary bg-primary/10 font-semibold;
 	}
 
 	.page-footer {
