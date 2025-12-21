@@ -18,6 +18,7 @@
         Edit2,
         Check,
         X,
+        Pen,
     } from "lucide-svelte";
     import * as jdenticon from "jdenticon";
     import { get } from "svelte/store";
@@ -232,7 +233,7 @@
                                 class="p-1 hover:bg-secondary rounded text-muted-foreground hover:text-foreground"
                                 title="Edit source URL"
                             >
-                                <Edit2 class="w-3 h-3" />
+                                <Pen class="w-3 h-3" />
                             </button>
                         {/if}
                     {/if}
