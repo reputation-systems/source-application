@@ -19,15 +19,24 @@ export interface FileSource {
     transactionId: string;   // Transaction ID
 }
 
-// --- SOURCE_OPINION (Box Type 2) ---
-// Represents user feedback on a specific version of a source.
-// Verifies if the source URL is correct, not an opinion about the file itself.
-export interface SourceOpinion {
-    id: string;              // Box ID of the opinion
-    targetBoxId: string;     // R5: The specific box ID being rated (immutable target)
-    isPositive: boolean;     // R8: true=positive, false=negative
+// --- INVALID_FILE_SOURCE (Box Type 4) ---
+// Represents an opinion that a specific FILE_SOURCE box is fake or incorrect.
+export interface InvalidFileSource {
+    id: string;              // Box ID of this opinion
+    targetBoxId: string;     // R5: The specific box ID being invalidated
     authorTokenId: string;   // Reputation Token ID from assets[0]
-    reputationAmount: number; // Token amount (voting weight)
+    reputationAmount: number; // Token amount (weight)
+    timestamp: number;       // Block timestamp
+    transactionId: string;   // Transaction ID
+}
+
+// --- UNAVAILABLE_SOURCE (Box Type 5) ---
+// Represents an opinion that a specific URL is no longer available.
+export interface UnavailableSource {
+    id: string;              // Box ID of this opinion
+    sourceUrl: string;       // R5: The URL being marked as unavailable
+    authorTokenId: string;   // Reputation Token ID from assets[0]
+    reputationAmount: number; // Token amount (weight)
     timestamp: number;       // Block timestamp
     transactionId: string;   // Transaction ID
 }
@@ -51,37 +60,35 @@ export interface ProfileOpinion {
  * File source with aggregated opinion data
  */
 export interface FileSourceWithScore extends FileSource {
-    directOpinions: SourceOpinion[];
-    positiveScore: number;   // Sum of positive reputation
-    negativeScore: number;   // Sum of negative reputation
-    netScore: number;        // positiveScore - negativeScore
+    confirmations: FileSource[];      // Other FILE_SOURCE boxes with same hash and URL
+    invalidations: InvalidFileSource[]; // INVALID_FILE_SOURCE boxes for this boxId
+    unavailabilities: UnavailableSource[]; // UNAVAILABLE_SOURCE boxes for this URL
+
+    confirmationScore: number; // Sum of reputation in confirmations
+    invalidationScore: number; // Sum of reputation in invalidations
+    unavailabilityScore: number; // Sum of reputation in unavailabilities
+
     ownerTrustScore: number; // Trust score of the source owner
 }
 
-// --- HELPER FUNCTIONS (MOCKS) ---
-
-/**
- * Calculate the aggregate score for a file source based on direct opinions.
- * MOCK IMPLEMENTATION - replace with actual logic when needed.
- */
-export function calculateSourceScore(
-    source: FileSource,
-    opinions: SourceOpinion[]
-): number {
-    // Mock: just return a random score for now
-    return Math.floor(Math.random() * 100) - 50;
-}
+// --- HELPER FUNCTIONS ---
 
 /**
  * Calculate the trust score for a profile based on PROFILE_OPINION boxes.
- * MOCK IMPLEMENTATION - replace with actual logic when needed.
  */
 export function calculateProfileTrust(
     profileTokenId: string,
     opinions: ProfileOpinion[]
 ): number {
-    // Mock: just return a random score for now
-    return Math.floor(Math.random() * 100);
+    const trust = opinions
+        .filter(op => op.isTrusted)
+        .reduce((sum, op) => sum + op.reputationAmount, 0);
+
+    const distrust = opinions
+        .filter(op => !op.isTrusted)
+        .reduce((sum, op) => sum + op.reputationAmount, 0);
+
+    return trust - distrust;
 }
 
 /**
@@ -89,25 +96,38 @@ export function calculateProfileTrust(
  */
 export function aggregateSourceScore(
     source: FileSource,
-    opinions: SourceOpinion[],
+    allSources: FileSource[],
+    invalidations: InvalidFileSource[],
+    unavailabilities: UnavailableSource[],
     profileOpinions: ProfileOpinion[] = []
 ): FileSourceWithScore {
-    const positiveScore = opinions
-        .filter(op => op.isPositive)
-        .reduce((sum, op) => sum + op.reputationAmount, 0);
+    // Confirmations are other sources with same hash and URL
+    const confirmations = allSources.filter(s =>
+        s.id !== source.id &&
+        s.fileHash === source.fileHash &&
+        s.sourceUrl === source.sourceUrl
+    );
 
-    const negativeScore = opinions
-        .filter(op => !op.isPositive)
-        .reduce((sum, op) => sum + op.reputationAmount, 0);
+    // Invalidations for this specific box
+    const filteredInvalidations = invalidations.filter(inv => inv.targetBoxId === source.id);
+
+    // Unavailabilities for this specific URL
+    const filteredUnavailabilities = unavailabilities.filter(un => un.sourceUrl === source.sourceUrl);
+
+    const confirmationScore = confirmations.reduce((sum, s) => sum + s.reputationAmount, 0);
+    const invalidationScore = filteredInvalidations.reduce((sum, inv) => sum + inv.reputationAmount, 0);
+    const unavailabilityScore = filteredUnavailabilities.reduce((sum, un) => sum + un.reputationAmount, 0);
 
     const ownerTrustScore = calculateProfileTrust(source.ownerTokenId, profileOpinions);
 
     return {
         ...source,
-        directOpinions: opinions,
-        positiveScore,
-        negativeScore,
-        netScore: positiveScore - negativeScore,
+        confirmations,
+        invalidations: filteredInvalidations,
+        unavailabilities: filteredUnavailabilities,
+        confirmationScore,
+        invalidationScore,
+        unavailabilityScore,
         ownerTrustScore
     };
 }

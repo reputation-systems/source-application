@@ -1,6 +1,6 @@
 import { writable } from 'svelte/store';
 import { type ReputationProof, type TypeNFT } from './object';
-import { type FileSource, type SourceOpinion, type ProfileOpinion } from './sourceObject';
+import { type FileSource, type InvalidFileSource, type UnavailableSource, type ProfileOpinion } from './sourceObject';
 
 export const address = writable<string | null>(null);
 export const network = writable<string | null>(null);
@@ -67,7 +67,8 @@ export function createPersistentStore<T>(key: string, initialValue: T) {
 
 export const fileSources = createPersistentStore<CachedData<FileSource[]>>('source_file_sources', {});
 export const currentSearchHash = writable<string>("");
-export const sourceOpinions = createPersistentStore<CachedData<SourceOpinion[]>>('source_opinions', {});
+export const invalidFileSources = createPersistentStore<CachedData<InvalidFileSource[]>>('source_invalidations', {});
+export const unavailableSources = createPersistentStore<CachedData<UnavailableSource[]>>('source_unavailabilities', {});
 export const profileOpinions = createPersistentStore<CachedData<ProfileOpinion[]>>('source_profile_opinions', {});
 export const isLoading = writable<boolean>(false);
 export const error = writable<string | null>(null);

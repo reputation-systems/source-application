@@ -6,7 +6,8 @@
     import {
         fileSources,
         isLoading,
-        sourceOpinions,
+        invalidFileSources,
+        unavailableSources,
         reputation_proof,
     } from "$lib/ergo/store";
     import FileSourceCard from "./FileSourceCard.svelte";
@@ -151,7 +152,10 @@
             {#each sources as source (source.id)}
                 <FileSourceCard
                     {source}
-                    opinions={$sourceOpinions[source.id]?.data || []}
+                    confirmations={[]}
+                    invalidations={$invalidFileSources[source.id]?.data || []}
+                    unavailabilities={$unavailableSources[source.sourceUrl]
+                        ?.data || []}
                     userProfileTokenId={hasProfile
                         ? $reputation_proof?.token_id
                         : null}

@@ -6,7 +6,8 @@
         fileSources,
         isLoading,
         currentSearchHash,
-        sourceOpinions,
+        invalidFileSources,
+        unavailableSources,
         reputation_proof,
     } from "$lib/ergo/store";
     import { Button } from "$lib/components/ui/button/index.js";
@@ -85,7 +86,10 @@
             {#each sources as source (source.id)}
                 <FileSourceCard
                     {source}
-                    opinions={$sourceOpinions[source.id]?.data || []}
+                    confirmations={sources}
+                    invalidations={$invalidFileSources[source.id]?.data || []}
+                    unavailabilities={$unavailableSources[source.sourceUrl]
+                        ?.data || []}
                     userProfileTokenId={hasProfile
                         ? $reputation_proof?.token_id
                         : null}

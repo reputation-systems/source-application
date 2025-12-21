@@ -3,7 +3,8 @@ import {
     reputation_proof,
     fileSources,
     currentSearchHash,
-    sourceOpinions,
+    invalidFileSources,
+    unavailableSources,
     profileOpinions,
     isLoading,
     error,
@@ -13,14 +14,16 @@ import { generate_reputation_proof } from './submit';
 import { type RPBox } from '$lib/ergo/object';
 import {
     fetchFileSourcesByHash,
-    fetchSourceOpinions,
+    fetchInvalidFileSources,
+    fetchUnavailableSources,
     fetchProfileOpinions,
     fetchAllFileSources,
     fetchFileSourcesByProfile
 } from './sourceFetch';
 import {
     FILE_SOURCE_TYPE_NFT_ID,
-    SOURCE_OPINION_TYPE_NFT_ID,
+    INVALID_FILE_SOURCE_TYPE_NFT_ID,
+    UNAVAILABLE_SOURCE_TYPE_NFT_ID,
     PROFILE_OPINION_TYPE_NFT_ID,
     PROFILE_TOTAL_SUPPLY,
     PROFILE_TYPE_NFT_ID,
@@ -179,11 +182,20 @@ export async function updateFileSource(
 }
 
 /**
- * Vote on a specific FILE_SOURCE box.
- * Creates a SOURCE_OPINION box with R5=sourceBoxId, R8=isPositive.
+ * Confirm a FILE_SOURCE box.
+ * Creates a new FILE_SOURCE box with same hash and URL.
  */
-export async function voteOnSource(sourceBoxId: string, isPositive: boolean): Promise<string> {
-    console.log("API: voteOnSource", { sourceBoxId, isPositive });
+export async function confirmSource(fileHash: string, sourceUrl: string): Promise<string> {
+    console.log("API: confirmSource", { fileHash, sourceUrl });
+    return await addFileSource(fileHash, sourceUrl);
+}
+
+/**
+ * Mark a FILE_SOURCE box as invalid.
+ * Creates an INVALID_FILE_SOURCE box with R5=sourceBoxId.
+ */
+export async function markInvalidSource(sourceBoxId: string): Promise<string> {
+    console.log("API: markInvalidSource", { sourceBoxId });
 
     const inputProofBox = await getOrCreateProfileBox();
     if (!inputProofBox) {
@@ -193,31 +205,28 @@ export async function voteOnSource(sourceBoxId: string, isPositive: boolean): Pr
     const tx = await generate_reputation_proof(
         1,
         PROFILE_TOTAL_SUPPLY,
-        SOURCE_OPINION_TYPE_NFT_ID,
+        INVALID_FILE_SOURCE_TYPE_NFT_ID,
         sourceBoxId,        // R5: target box ID
-        isPositive,         // R8: positive/negative vote
+        false,              // R8: not used
         null,               // R9: no content needed
-        true,               // R6: locked (true) - opinions are permanent once cast
+        false,               // R6: unlocked
         inputProofBox
     );
 
-    if (!tx) throw new Error("Source opinion transaction failed.");
-    console.log("Source opinion transaction sent, ID:", tx);
+    if (!tx) throw new Error("Invalid source transaction failed.");
+    console.log("Invalid source transaction sent, ID:", tx);
 
     return tx;
 }
 
 /**
- * Update an existing vote by spending the old opinion box and creating a new one.
+ * Mark a source URL as unavailable.
+ * Creates an UNAVAILABLE_SOURCE box with R5=sourceUrl.
  */
-export async function updateSourceVote(
-    oldVoteBoxId: string,
-    sourceBoxId: string,
-    isPositive: boolean
-): Promise<string> {
-    console.log("API: updateSourceVote", { oldVoteBoxId, sourceBoxId, isPositive });
+export async function markUnavailableSource(sourceUrl: string): Promise<string> {
+    console.log("API: markUnavailableSource", { sourceUrl });
 
-    const inputProofBox = await getOrCreateProfileBox(SOURCE_OPINION_TYPE_NFT_ID, sourceBoxId);
+    const inputProofBox = await getOrCreateProfileBox();
     if (!inputProofBox) {
         throw new Error("Profile box required but not available yet.");
     }
@@ -225,19 +234,21 @@ export async function updateSourceVote(
     const tx = await generate_reputation_proof(
         1,
         PROFILE_TOTAL_SUPPLY,
-        SOURCE_OPINION_TYPE_NFT_ID,
-        sourceBoxId,
-        isPositive,
-        null,
-        false,              // R6: unlocked to allow updates
+        UNAVAILABLE_SOURCE_TYPE_NFT_ID,
+        sourceUrl,          // R5: source URL
+        false,              // R8: not used
+        null,               // R9: no content needed
+        false,               // R6: unlocked
         inputProofBox
     );
 
-    if (!tx) throw new Error("Source opinion update transaction failed.");
-    console.log("Source opinion update transaction sent, ID:", tx);
+    if (!tx) throw new Error("Unavailable source transaction failed.");
+    console.log("Unavailable source transaction sent, ID:", tx);
 
     return tx;
 }
+
+// updateSourceVote removed as it's no longer used with the new system
 
 /**
  * Trust or distrust a profile.
@@ -294,14 +305,25 @@ export async function searchByHash(fileHash: string) {
             return s;
         });
 
-        // Load opinions for each source
-        const currentOpinions = get(sourceOpinions);
+        // Load invalidations and unavailabilities for each source
+        const currentInvalidations = get(invalidFileSources);
+        const currentUnavailabilities = get(unavailableSources);
+
         for (const source of sources) {
-            // Only fetch if not in cache or cache expired
-            if (!isEntryValid(currentOpinions[source.id])) {
-                const opinions = await fetchSourceOpinions(source.id);
-                sourceOpinions.update(s => {
-                    s[source.id] = { data: opinions, timestamp: Date.now() };
+            // Fetch invalidations for this box
+            if (!isEntryValid(currentInvalidations[source.id])) {
+                const invalidations = await fetchInvalidFileSources(source.id);
+                invalidFileSources.update(s => {
+                    s[source.id] = { data: invalidations, timestamp: Date.now() };
+                    return s;
+                });
+            }
+
+            // Fetch unavailabilities for this URL
+            if (!isEntryValid(currentUnavailabilities[source.sourceUrl])) {
+                const unavailabilities = await fetchUnavailableSources(source.sourceUrl);
+                unavailableSources.update(s => {
+                    s[source.sourceUrl] = { data: unavailabilities, timestamp: Date.now() };
                     return s;
                 });
             }

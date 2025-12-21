@@ -1,12 +1,14 @@
 <script lang="ts">
     import {
         type FileSource,
-        type SourceOpinion,
+        type InvalidFileSource,
+        type UnavailableSource,
     } from "$lib/ergo/sourceObject";
     import {
-        voteOnSource,
+        confirmSource,
+        markInvalidSource,
+        markUnavailableSource,
         updateFileSource,
-        updateSourceVote,
     } from "$lib/ergo/sourceStore";
     import { Button } from "$lib/components/ui/button/index.js";
     import { Input } from "$lib/components/ui/input/index.js";
@@ -19,6 +21,8 @@
         Check,
         X,
         Pen,
+        CloudOff,
+        AlertTriangle,
     } from "lucide-svelte";
     import * as jdenticon from "jdenticon";
     import { get } from "svelte/store";
@@ -27,27 +31,21 @@
     import { goto } from "$app/navigation";
 
     export let source: FileSource;
-    export let opinions: SourceOpinion[] = [];
+    export let confirmations: FileSource[] = [];
+    export let invalidations: InvalidFileSource[] = [];
+    export let unavailabilities: UnavailableSource[] = [];
     export let userProfileTokenId: string | null = null;
 
     let isVoting = false;
     let voteError: string | null = null;
 
-    $: positiveVotes = opinions.filter((op) => op.isPositive);
-    $: negativeVotes = opinions.filter((op) => !op.isPositive);
-    $: positiveScore = positiveVotes.reduce(
-        (sum, op) => sum + op.reputationAmount,
-        0,
-    );
-    $: negativeScore = negativeVotes.reduce(
-        (sum, op) => sum + op.reputationAmount,
-        0,
-    );
-    $: netScore = positiveScore - negativeScore;
-    $: userOpinion = opinions.find(
-        (op) => op.authorTokenId === userProfileTokenId,
-    );
-    $: userHasVoted = !!userOpinion;
+    $: confirmationScore = confirmations.reduce((sum, op) => sum + op.reputationAmount, 0);
+    $: invalidationScore = invalidations.reduce((sum, op) => sum + op.reputationAmount, 0);
+    $: unavailabilityScore = unavailabilities.reduce((sum, op) => sum + op.reputationAmount, 0);
+    
+    $: userHasConfirmed = confirmations.some(op => op.ownerTokenId === userProfileTokenId);
+    $: userHasInvalidated = invalidations.some(op => op.authorTokenId === userProfileTokenId);
+    $: userHasMarkedUnavailable = unavailabilities.some(op => op.authorTokenId === userProfileTokenId);
 
     let isEditingSource = false;
     let newSourceUrl = source.sourceUrl;
@@ -61,24 +59,46 @@
         navigator.clipboard.writeText(text);
     }
 
-    async function handleVote(isPositive: boolean) {
+    async function handleConfirm() {
         if (!userProfileTokenId) return;
-
         isVoting = true;
         voteError = null;
         try {
-            if (userHasVoted && userOpinion) {
-                // Update existing vote
-                await updateSourceVote(userOpinion.id, source.id, isPositive);
-                console.log("Vote updated");
-            } else {
-                // New vote
-                await voteOnSource(source.id, isPositive);
-                console.log("Vote submitted");
-            }
+            await confirmSource(source.fileHash, source.sourceUrl);
+            console.log("Source confirmed");
         } catch (err: any) {
-            console.error("Error voting:", err);
-            voteError = err?.message || "Failed to vote";
+            console.error("Error confirming:", err);
+            voteError = err?.message || "Failed to confirm";
+        } finally {
+            isVoting = false;
+        }
+    }
+
+    async function handleInvalid() {
+        if (!userProfileTokenId) return;
+        isVoting = true;
+        voteError = null;
+        try {
+            await markInvalidSource(source.id);
+            console.log("Source marked as invalid");
+        } catch (err: any) {
+            console.error("Error marking invalid:", err);
+            voteError = err?.message || "Failed to mark invalid";
+        } finally {
+            isVoting = false;
+        }
+    }
+
+    async function handleUnavailable() {
+        if (!userProfileTokenId) return;
+        isVoting = true;
+        voteError = null;
+        try {
+            await markUnavailableSource(source.sourceUrl);
+            console.log("Source marked as unavailable");
+        } catch (err: any) {
+            console.error("Error marking unavailable:", err);
+            voteError = err?.message || "Failed to mark unavailable";
         } finally {
             isVoting = false;
         }
@@ -112,22 +132,16 @@
     }
 
     function getStatusBadge(): { text: string; color: string } {
-        if (opinions.length === 0) {
-            return {
-                text: "Unverified",
-                color: "bg-gray-500/20 text-gray-400",
-            };
+        if (invalidationScore > confirmationScore) {
+            return { text: "Invalid", color: "bg-red-500/20 text-red-400" };
         }
-        if (netScore > 0) {
-            return {
-                text: "Verified",
-                color: "bg-green-500/20 text-green-400",
-            };
+        if (unavailabilityScore > 0) {
+            return { text: "Unavailable", color: "bg-orange-500/20 text-orange-400" };
         }
-        if (netScore < 0) {
-            return { text: "Flagged", color: "bg-red-500/20 text-red-400" };
+        if (confirmationScore > 0) {
+            return { text: "Confirmed", color: "bg-green-500/20 text-green-400" };
         }
-        return { text: "Disputed", color: "bg-yellow-500/20 text-yellow-400" };
+        return { text: "Unverified", color: "bg-gray-500/20 text-gray-400" };
     }
 
     $: statusBadge = getStatusBadge();
@@ -278,54 +292,54 @@
                 {#if userProfileTokenId}
                     <div class="flex gap-2 items-center">
                         <Button
-                            variant={userOpinion?.isPositive
-                                ? "default"
-                                : "outline"}
+                            variant={userHasConfirmed ? "default" : "outline"}
                             size="sm"
-                            on:click={() => handleVote(true)}
-                            disabled={isVoting ||
-                                (userHasVoted && userOpinion?.isPositive)}
+                            on:click={handleConfirm}
+                            disabled={isVoting || userHasConfirmed}
                             class="text-xs h-8"
+                            title="Confirm this source provides the file"
                         >
                             <ThumbsUp class="w-3 h-3 mr-1" />
-                            {userHasVoted
-                                ? userOpinion?.isPositive
-                                    ? "Verified"
-                                    : "Change to Verify"
-                                : "Verify"}
+                            {userHasConfirmed ? "Confirmed" : "Confirm"}
                         </Button>
                         <Button
-                            variant={userOpinion && !userOpinion.isPositive
-                                ? "default"
-                                : "outline"}
+                            variant={userHasInvalidated ? "default" : "outline"}
                             size="sm"
-                            on:click={() => handleVote(false)}
-                            disabled={isVoting ||
-                                (userHasVoted && !userOpinion?.isPositive)}
+                            on:click={handleInvalid}
+                            disabled={isVoting || userHasInvalidated}
                             class="text-xs h-8"
+                            title="Mark this source as fake or incorrect"
                         >
                             <ThumbsDown class="w-3 h-3 mr-1" />
-                            {userHasVoted
-                                ? !userOpinion?.isPositive
-                                    ? "Flagged"
-                                    : "Change to Flag"
-                                : "Flag Bad"}
+                            {userHasInvalidated ? "Invalidated" : "Invalid"}
+                        </Button>
+                        <Button
+                            variant={userHasMarkedUnavailable ? "default" : "outline"}
+                            size="sm"
+                            on:click={handleUnavailable}
+                            disabled={isVoting || userHasMarkedUnavailable}
+                            class="text-xs h-8"
+                            title="Mark this URL as broken or unavailable"
+                        >
+                            <CloudOff class="w-3 h-3 mr-1" />
+                            {userHasMarkedUnavailable ? "Unavailable" : "Unavailable"}
                         </Button>
                     </div>
                 {/if}
 
                 <!-- Score Display -->
                 <div class="flex items-center gap-3 text-xs">
-                    <div class="flex items-center gap-1">
+                    <div class="flex items-center gap-1" title="Confirmations">
                         <ThumbsUp class="w-3 h-3 text-green-500" />
-                        <span>{positiveVotes.length}</span>
+                        <span>{confirmations.length}</span>
                     </div>
-                    <div class="flex items-center gap-1">
+                    <div class="flex items-center gap-1" title="Invalidations">
                         <ThumbsDown class="w-3 h-3 text-red-500" />
-                        <span>{negativeVotes.length}</span>
+                        <span>{invalidations.length}</span>
                     </div>
-                    <div class={getScoreColor(netScore)}>
-                        Score: {netScore > 0 ? "+" : ""}{netScore}
+                    <div class="flex items-center gap-1" title="Unavailabilities">
+                        <CloudOff class="w-3 h-3 text-orange-500" />
+                        <span>{unavailabilities.length}</span>
                     </div>
                 </div>
 

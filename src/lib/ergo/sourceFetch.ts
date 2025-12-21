@@ -1,9 +1,10 @@
 import { get } from 'svelte/store';
-import { type FileSource, type SourceOpinion, type ProfileOpinion } from './sourceObject';
+import { type FileSource, type ProfileOpinion } from './sourceObject';
 import { hexToBytes, hexToUtf8, serializedToRendered } from './utils';
 import {
     FILE_SOURCE_TYPE_NFT_ID,
-    SOURCE_OPINION_TYPE_NFT_ID,
+    INVALID_FILE_SOURCE_TYPE_NFT_ID,
+    UNAVAILABLE_SOURCE_TYPE_NFT_ID,
     PROFILE_OPINION_TYPE_NFT_ID,
     explorer_uri
 } from './envs';
@@ -11,6 +12,7 @@ import { ergo_tree_hash } from './contract';
 import { SByte, SColl } from '@fleet-sdk/core';
 import DOMPurify from "dompurify";
 import { type ApiBox } from './object';
+import { type InvalidFileSource, type UnavailableSource } from './sourceObject';
 
 
 const LIMIT_PER_PAGE = 100;
@@ -145,33 +147,57 @@ export async function fetchFileSourcesByHash(fileHash: string): Promise<FileSour
 }
 
 /**
- * Fetch all SOURCE_OPINION boxes for a specific source box.
- * Returns all opinions (votes) on this specific source.
+ * Fetch all INVALID_FILE_SOURCE boxes for a specific source box.
  */
-export async function fetchSourceOpinions(sourceBoxId: string): Promise<SourceOpinion[]> {
-    console.log("Fetching opinions for source:", sourceBoxId);
-    const boxes = await searchBoxes(SOURCE_OPINION_TYPE_NFT_ID, sourceBoxId);
+export async function fetchInvalidFileSources(sourceBoxId: string): Promise<InvalidFileSource[]> {
+    console.log("Fetching invalidations for source:", sourceBoxId);
+    const boxes = await searchBoxes(INVALID_FILE_SOURCE_TYPE_NFT_ID, sourceBoxId);
 
-    const opinions: SourceOpinion[] = [];
+    const invalidations: InvalidFileSource[] = [];
 
     for (const box of boxes) {
         if (!box.assets?.length) continue;
-        if (box.additionalRegisters.R6?.renderedValue === "false") continue;
 
-        const opinion: SourceOpinion = {
+        const invalidation: InvalidFileSource = {
             id: box.boxId,
             targetBoxId: sourceBoxId,
-            isPositive: box.additionalRegisters.R8?.renderedValue === 'true',
             authorTokenId: box.assets[0].tokenId,
             reputationAmount: Number(box.assets[0].amount),
             timestamp: await getTimestampFromBlockId(box.blockId),
             transactionId: box.transactionId
         };
 
-        opinions.push(opinion);
+        invalidations.push(invalidation);
     }
 
-    return opinions;
+    return invalidations;
+}
+
+/**
+ * Fetch all UNAVAILABLE_SOURCE boxes for a specific URL.
+ */
+export async function fetchUnavailableSources(sourceUrl: string): Promise<UnavailableSource[]> {
+    console.log("Fetching unavailabilities for URL:", sourceUrl);
+    const boxes = await searchBoxes(UNAVAILABLE_SOURCE_TYPE_NFT_ID, sourceUrl);
+
+    const unavailabilities: UnavailableSource[] = [];
+
+    for (const box of boxes) {
+        if (!box.assets?.length) continue;
+
+        const unavailability: UnavailableSource = {
+            id: box.boxId,
+            sourceUrl: sourceUrl,
+            authorTokenId: box.assets[0].tokenId,
+            reputationAmount: Number(box.assets[0].amount),
+            timestamp: await getTimestampFromBlockId(box.blockId),
+            transactionId: box.transactionId
+        };
+
+        unavailabilities.push(unavailability);
+    }
+
+    return unavailabilities;
 }
 
 /**
