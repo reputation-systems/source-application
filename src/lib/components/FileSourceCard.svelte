@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { searchByHash } from "$lib/ergo/sourceStore";
+    import { searchByHash, addFileSource } from "$lib/ergo/sourceStore";
     import {
         fileSources,
         isLoading,
@@ -12,11 +12,20 @@
         groupByProfile,
         type TimelineEvent,
     } from "$lib/ergo/sourceObject";
-    import { LayoutGrid, Users, Search, ThumbsUp } from "lucide-svelte";
+    import {
+        LayoutGrid,
+        Users,
+        Search,
+        ThumbsUp,
+        AlertTriangle,
+    } from "lucide-svelte";
     import DownloadSourceCard from "./DownloadSourceCard.svelte";
     import ProfileSourceGroup from "./ProfileSourceGroup.svelte";
     import Timeline from "./Timeline.svelte";
     import { type ReputationProof } from "$lib/ergo/object";
+    import { Button } from "$lib/components/ui/button/index.js";
+    import { Input } from "$lib/components/ui/input/index.js";
+    import { Label } from "$lib/components/ui/label/index.js";
 
     export let fileHash: string;
     export let profile: ReputationProof | null = null;
@@ -25,10 +34,13 @@
 
     let viewMode: "source" | "profile" | "timeline" = "source";
 
+    // Add Source State
+    let newSourceUrl = "";
+    let isAddingSource = false;
+    let addError: string | null = null;
+
     // Update global profile if provided
-    $: if (profile) {
-        reputation_proof.set(profile);
-    }
+    reputation_proof.set(profile);
 
     // Fetch data when fileHash changes
     $: if (fileHash) {
@@ -97,9 +109,40 @@
 
         return events;
     })();
+
+    async function handleAddSource() {
+        if (!newSourceUrl.trim() || !profile) return;
+
+        isAddingSource = true;
+        addError = null;
+        try {
+            const tx = await addFileSource(
+                fileHash.trim(),
+                newSourceUrl.trim(),
+            );
+            console.log("Source added, tx:", tx);
+            newSourceUrl = "";
+            // Ideally we should refresh or optimistic update here, but searchByHash might handle it via polling or store update
+        } catch (err: any) {
+            console.error("Error adding source:", err);
+            addError = err?.message || "Failed to add source";
+        } finally {
+            isAddingSource = false;
+        }
+    }
 </script>
 
 <div class={className}>
+    <div class="mb-8 border-b pb-4">
+        <Label
+            class="text-[10px] text-muted-foreground uppercase tracking-widest font-bold"
+            >File Hash</Label
+        >
+        <div class="font-mono text-xs break-all mt-1 select-all opacity-70">
+            {fileHash}
+        </div>
+    </div>
+
     {#if $isLoading}
         <div class="text-center py-12">
             <div
@@ -108,8 +151,63 @@
             <p class="text-muted-foreground">Loading sources...</p>
         </div>
     {:else if sources.length === 0}
-        <div class="text-center py-12 bg-card rounded-lg border border-dashed">
-            <p class="text-muted-foreground">No sources found for this hash</p>
+        <div class="py-8">
+            <div class="text-center mb-8">
+                <p class="text-muted-foreground">
+                    No sources found for this hash
+                </p>
+            </div>
+
+            <div class="max-w-md mx-auto text-left py-6">
+                <h4 class="font-semibold mb-6 text-lg">Add First Source</h4>
+
+                <div
+                    class="text-xs text-amber-500/80 mb-6 flex gap-2 items-start"
+                >
+                    <AlertTriangle class="w-4 h-4 flex-shrink-0 mt-0.5" />
+                    <p>
+                        Verify URLs before adding. They will be immutable on the
+                        blockchain.
+                    </p>
+                </div>
+
+                {#if addError}
+                    <div
+                        class="bg-red-500/10 border border-red-500/20 p-3 rounded-lg mb-4"
+                    >
+                        <p class="text-xs text-red-200">{addError}</p>
+                    </div>
+                {/if}
+
+                <div class="space-y-4">
+                    <div>
+                        <Label for="new-source-url">Source URL</Label>
+                        <Input
+                            id="new-source-url"
+                            bind:value={newSourceUrl}
+                            placeholder="https://example.com/file.zip"
+                            class="font-mono text-sm bg-background"
+                            disabled={!profile || isAddingSource}
+                        />
+                    </div>
+
+                    <Button
+                        on:click={handleAddSource}
+                        disabled={!profile ||
+                            !newSourceUrl.trim() ||
+                            isAddingSource}
+                        class="w-full"
+                    >
+                        {isAddingSource ? "Adding Source..." : "Add Source"}
+                    </Button>
+
+                    {#if !profile}
+                        <p class="text-xs text-center text-muted-foreground">
+                            You must have a profile to add sources.
+                        </p>
+                    {/if}
+                </div>
+            </div>
         </div>
     {:else}
         <div
@@ -118,7 +216,7 @@
             <div>
                 <div class="flex items-center gap-2 mt-1">
                     <div
-                        class="flex items-center gap-1.5 text-green-500 bg-green-500/10 px-2 py-1 rounded-full text-xs font-medium"
+                        class="flex items-center gap-1.5 text-green-500 text-xs font-semibold uppercase tracking-wider"
                     >
                         <ThumbsUp class="w-3.5 h-3.5" />
                         <span>{totalThumbsUp} Total Sources</span>
@@ -126,32 +224,32 @@
                 </div>
             </div>
 
-            <div class="flex bg-muted p-1 rounded-lg self-start">
+            <div class="flex border-b self-start">
                 <button
-                    class="flex items-center gap-2 px-3 py-1.5 rounded-md text-sm transition-all {viewMode ===
+                    class="flex items-center gap-2 px-4 py-2 text-sm font-medium transition-all border-b-2 -mb-[2px] {viewMode ===
                     'source'
-                        ? 'bg-background shadow-sm text-foreground'
-                        : 'text-muted-foreground hover:text-foreground'}"
+                        ? 'border-primary text-primary'
+                        : 'border-transparent text-muted-foreground hover:text-foreground'}"
                     on:click={() => (viewMode = "source")}
                 >
                     <LayoutGrid class="w-4 h-4" />
                     By Source
                 </button>
                 <button
-                    class="flex items-center gap-2 px-3 py-1.5 rounded-md text-sm transition-all {viewMode ===
+                    class="flex items-center gap-2 px-4 py-2 text-sm font-medium transition-all border-b-2 -mb-[2px] {viewMode ===
                     'profile'
-                        ? 'bg-background shadow-sm text-foreground'
-                        : 'text-muted-foreground hover:text-foreground'}"
+                        ? 'border-primary text-primary'
+                        : 'border-transparent text-muted-foreground hover:text-foreground'}"
                     on:click={() => (viewMode = "profile")}
                 >
                     <Users class="w-4 h-4" />
                     By Profile
                 </button>
                 <button
-                    class="flex items-center gap-2 px-3 py-1.5 rounded-md text-sm transition-all {viewMode ===
+                    class="flex items-center gap-2 px-4 py-2 text-sm font-medium transition-all border-b-2 -mb-[2px] {viewMode ===
                     'timeline'
-                        ? 'bg-background shadow-sm text-foreground'
-                        : 'text-muted-foreground hover:text-foreground'}"
+                        ? 'border-primary text-primary'
+                        : 'border-transparent text-muted-foreground hover:text-foreground'}"
                     on:click={() => (viewMode = "timeline")}
                 >
                     <Search class="w-4 h-4" />

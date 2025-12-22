@@ -86,9 +86,7 @@
     }
 </script>
 
-<div
-    class="bg-card p-4 rounded-lg border hover:border-primary/50 transition-colors"
->
+<div class="py-6 border-b last:border-0">
     <div class="flex flex-col gap-4">
         <!-- Source URL -->
         <div class="flex items-start justify-between gap-4">

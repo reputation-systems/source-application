@@ -24,9 +24,7 @@
     }
 </script>
 
-<div
-    class="bg-card p-4 rounded-lg border hover:border-primary/50 transition-colors"
->
+<div class="py-6 border-b last:border-0">
     <div class="flex items-start gap-4">
         <!-- Profile Avatar -->
         <div class="flex-shrink-0">
@@ -55,9 +53,7 @@
                     {@const invs = getInvalidations(source.id)}
                     {@const unavs = getUnavailabilities(source.sourceUrl)}
 
-                    <div
-                        class="bg-secondary/30 p-2 rounded border border-secondary/50"
-                    >
+                    <div class="py-1">
                         <div class="flex items-start justify-between gap-2">
                             <a
                                 href={source.sourceUrl}

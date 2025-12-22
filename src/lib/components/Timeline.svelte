@@ -112,17 +112,13 @@
 
 <style>
     .timeline-container {
-        margin: 1rem 0;
-        padding: 1.25rem;
-        background: rgba(255, 255, 255, 0.02);
-        border-radius: 12px;
-        border: 1px solid rgba(255, 255, 255, 0.08);
+        margin: 2rem 0;
     }
 
     .timeline-title {
-        font-size: 1rem;
+        font-size: 1.125rem;
         font-weight: 600;
-        margin-bottom: 1.25rem;
+        margin-bottom: 2rem;
         color: #fff;
         opacity: 0.9;
     }
@@ -170,10 +166,7 @@
     }
 
     .timeline-content {
-        background: rgba(255, 255, 255, 0.03);
-        padding: 0.75rem 1rem;
-        border-radius: 8px;
-        border: 1px solid rgba(255, 255, 255, 0.04);
+        padding: 0.25rem 0 1.5rem 0;
     }
 
     .timeline-header {
