@@ -1,198 +1,549 @@
-# Forum Component
+# Source Application Library
 
-The configurable Forum component for the Ergo reputation library.
+A decentralized File Discovery and Verification library built on Ergo blockchain. This library provides both Svelte components and TypeScript functions for building file source applications with reputation-based trust mechanisms.
 
-## Props
+## Installation
 
-### Required
-
-  - `topic_id: string` - ID of the topic/project to discuss.
-
-### Optional - Configuration Stores
-
-You can pass your own Svelte stores to control the configuration:
-
-  - `spam_limit: Writable<string> | null` - Store for the spam limit (default: "0").
-  - `web_explorer_uri_tx: Writable<string> | null` - Store for the transaction explorer URI.
-  - `web_explorer_uri_addr: Writable<string> | null` - Store for the address explorer URI.
-  - `web_explorer_uri_tkn: Writable<string> | null` - Store for the token explorer URI.
-  - `explorer_uri: Writable<string> | null` - Store for the explorer API URI.
-
-### Optional - Styles and UI
-
-  - `maxWidth: string` - Maximum width of the component (default: `"100%"`).
-  - `showTopicInput: boolean` - Show input field to change the topic (default: `false`).
-  - `showSpamToggle: boolean` - Show button to toggle displaying/hiding spam (default: `true`).
-  - `showTopicScore: boolean` - Show the topic score (default: `true`).
-
-### Compatibility
-
-  - `profile: any | null` - Reputation profile (optional).
-  - `connect_executed: boolean` - Whether wallet connection has been executed (default: `false`).
-  - `connected: boolean` - Whether the wallet is currently connected (default: `false`).
-
-## Basic Usage Example
-
-```svelte
-<script>
-  import { Forum } from 'forum-application';
-  
-  let topicId = "716f6e863f744b9ac22c97ec7b76ea5f5908bc5b2f67c61510bfc4751384ea7a";
-</script>
-
-<Forum 
-  topic_id={topicId}
-  maxWidth="800px"
-/>
-```
-
-## Example with Custom Stores
-
-```svelte
-<script>
-  import { Forum } from 'forum-application';
-  import { writable } from 'svelte/store';
-  
-  let topicId = "716f6e863f744b9ac22c97ec7b76ea5f5908bc5b2f67c61510bfc4751384ea7a";
-  
-  // Your custom stores
-  const mySpamLimit = writable("5");
-  const myExplorerTx = writable("https://explorer.ergoplatform.com/en/transactions/");
-  const myExplorerApi = writable("https://api.ergoplatform.com");
-</script>
-
-<Forum 
-  topic_id={topicId}
-  spam_limit={mySpamLimit}
-  web_explorer_uri_tx={myExplorerTx}
-  explorer_uri={myExplorerApi}
-  maxWidth="1200px"
-  showTopicInput={false}
-/>
-
-<button on:click={() => $mySpamLimit = "10"}>
-  Change Spam Limit to 10
-</button>
-```
-
-## Minimalist Example
-
-```svelte
-<script>
-  import { Forum } from 'forum-application';
-  
-  let topicId = "716f6e863f744b9ac22c97ec7b76ea5f5908bc5b2f67c61510bfc4751384ea7a";
-</script>
-
-<Forum 
-  topic_id={topicId}
-  showTopicInput={false}
-  showSpamToggle={false}
-  maxWidth="600px"
-/>
+```bash
+npm install source-application
 ```
 
 ## Features
 
-  * **Fully Configurable**: Control all aspects of the component via props.
-  * **Reactive Stores**: Use Svelte stores for dynamic configuration.
-  * **Customizable Styles**: Control the width and visibility of elements.
-  * **Compatible**: Maintains compatibility with legacy props.
-  * **Autonomous**: Uses default values if no stores are provided.
+- **Decentralized File Discovery**: Find and share download sources for files by hash
+- **Reputation System**: Trust-based verification using Ergo blockchain reputation proofs
+- **Opinion Mechanisms**: Confirm, invalidate, or mark sources as unavailable
+- **Profile Management**: Create and manage user reputation profiles
+- **Island Components**: Three ready-to-use Svelte components that work standalone
+- **TypeScript SDK**: Full API for custom integrations
+
+---
+
+## Svelte Components
+
+### ProfileCard
+
+Profile creation and basic information display.
+
+**Props:**
+- `profile?: any` - Profile object (optional, uses store if not provided)
+- `onProfileCreated?: (txId: string) => void` - Callback when profile is created
+
+**Usage:**
+```svelte
+<script>
+  import { ProfileCard } from 'source-application';
+  
+  let profile = null;
+</script>
+
+<ProfileCard 
+  {profile}
+  onProfileCreated={(tx) => console.log('Profile created:', tx)}
+/>
+```
+
+**Features:**
+- Shows profile token ID, owner address, and reputation amount
+- One-click profile creation if none exists
+- Copy to clipboard functionality
+- Works as standalone island component
+
+---
+
+### FileSourceCreation
+
+Form for adding new file sources to the network.
+
+**Props:**
+- `hasProfile: boolean` - Whether user has a profile (required)
+- `onSourceAdded?: (txId: string) => void` - Callback when source is added
+
+**Usage:**
+```svelte
+<script>
+  import { FileSourceCreation } from 'source-application';
+  
+  let hasProfile = true;
+</script>
+
+<FileSourceCreation 
+  {hasProfile}
+  onSourceAdded={(tx) => console.log('Source added:', tx)}
+/>
+```
+
+**Features:**
+- File hash input (Blake2b256)
+- Source URL input (HTTP, IPFS, magnet links)
+- Security warnings
+- Error handling
+- Disabled state when no profile
+
+---
+
+### FileSourceCard
+
+Complete file source display with all interactions.
+
+**Props:**
+- `source: FileSource` - File source object (required)
+- `confirmations: FileSource[]` - Array of confirmations
+- `invalidations: InvalidFileSource[]` - Array of invalidations
+- `unavailabilities: UnavailableSource[]` - Array of unavailabilities
+
+**Usage:**
+```svelte
+<script>
+  import { FileSourceCard } from 'source-application';
+  
+  let source = {
+    id: "...",
+    fileHash: "abc123...",
+    sourceUrl: "https://example.com/file.zip",
+    ownerTokenId: "...",
+    reputationAmount: 100,
+    timestamp: Date.now()
+  };
+</script>
+
+<FileSourceCard 
+  {source}
+  confirmations={[]}
+  invalidations={[]}
+  unavailabilities={[]}
+/>
+```
+
+**Features:**
+- Owner avatar and information
+- File hash and source URL display
+- Confirmation/invalidation/unavailability scores
+- Action buttons: Confirm, Mark Invalid, Mark Unavailable
+- Update source URL functionality
+- Status badges and visual indicators
+- Timeline view
+
+---
+
+## TypeScript SDK
+
+### Profile Functions
+
+#### fetchProfile
+Fetch user's reputation profile from the blockchain.
+
+```typescript
+import { fetchProfile } from 'source-application';
+
+const profile = await fetchProfile(ergo);
+// Returns: ReputationProof | null
+```
+
+#### createProfileBox
+Create a new reputation profile for the user.
+
+```typescript
+import { createProfileBox } from 'source-application';
+
+const txId = await createProfileBox();
+// Returns: string (transaction ID)
+```
+
+---
+
+### Source Fetch Functions
+
+#### fetchFileSourcesByHash
+Fetch all FILE_SOURCE boxes for a specific file hash.
+
+```typescript
+import { fetchFileSourcesByHash } from 'source-application';
+
+const sources = await fetchFileSourcesByHash("abc123...");
+// Returns: FileSource[]
+```
+
+#### fetchAllFileSources
+Fetch recent file sources for browsing.
+
+```typescript
+import { fetchAllFileSources } from 'source-application';
+
+const sources = await fetchAllFileSources(50); // limit = 50
+// Returns: FileSource[]
+```
+
+#### fetchFileSourcesByProfile
+Fetch all file sources created by a specific profile.
+
+```typescript
+import { fetchFileSourcesByProfile } from 'source-application';
+
+const sources = await fetchFileSourcesByProfile(profileTokenId, 50);
+// Returns: FileSource[]
+```
+
+#### Other Fetch Functions
+- `fetchInvalidFileSources(sourceBoxId)` - Get invalidations for a source
+- `fetchUnavailableSources(sourceUrl)` - Get unavailability reports for a URL
+- `fetchProfileOpinions(profileTokenId)` - Get trust/distrust opinions for a profile
+- `fetchInvalidFileSourcesByProfile(profileTokenId)` - Get invalidations by profile
+- `fetchUnavailableSourcesByProfile(profileTokenId)` - Get unavailabilities by profile
+- `fetchProfileOpinionsByAuthor(authorTokenId)` - Get opinions given by a profile
+- `getTimestampFromBlockId(blockId)` - Get timestamp from block ID
+
+---
+
+### Source Store Functions (Actions)
+
+#### addFileSource
+Add a new file source to the network.
+
+```typescript
+import { addFileSource } from 'source-application';
+
+const txId = await addFileSource(
+  "abc123...", // file hash
+  "https://example.com/file.zip" // source URL
+);
+```
+
+#### confirmSource
+Confirm an existing file source (create duplicate FILE_SOURCE).
+
+```typescript
+import { confirmSource } from 'source-application';
+
+const txId = await confirmSource(
+  "abc123...", // file hash
+  "https://example.com/file.zip" // source URL
+);
+```
+
+#### markInvalidSource
+Mark a file source as fake or incorrect.
+
+```typescript
+import { markInvalidSource } from 'source-application';
+
+const txId = await markInvalidSource(sourceBoxId);
+```
+
+#### markUnavailableSource
+Mark a source URL as no longer available.
+
+```typescript
+import { markUnavailableSource } from 'source-application';
+
+const txId = await markUnavailableSource("https://example.com/file.zip");
+```
+
+#### updateFileSource
+Update an existing file source with a new URL.
+
+```typescript
+import { updateFileSource } from 'source-application';
+
+const txId = await updateFileSource(
+  oldBoxId,
+  fileHash,
+  newSourceUrl
+);
+```
+
+#### trustProfile
+Express trust or distrust for a profile.
+
+```typescript
+import { trustProfile } from 'source-application';
+
+const txId = await trustProfile(profileTokenId, true); // true = trust, false = distrust
+```
+
+---
+
+### Store Actions (Loading Data)
+
+#### searchByHash
+Load file sources into store by hash.
+
+```typescript
+import { searchByHash } from 'source-application';
+
+await searchByHash("abc123...");
+// Updates fileSources, invalidFileSources, unavailableSources stores
+```
+
+#### loadAllSources
+Load recent file sources into store.
+
+```typescript
+import { loadAllSources } from 'source-application';
+
+await loadAllSources();
+// Updates fileSources store
+```
+
+#### loadSourcesByProfile
+Load all sources and opinions for a profile.
+
+```typescript
+import { loadSourcesByProfile } from 'source-application';
+
+await loadSourcesByProfile(profileTokenId);
+// Updates fileSources, profileInvalidations, profileUnavailabilities stores
+```
+
+#### loadProfileOpinions
+Load trust/distrust opinions for a profile.
+
+```typescript
+import { loadProfileOpinions } from 'source-application';
+
+await loadProfileOpinions(profileTokenId);
+// Updates profileOpinions store
+```
+
+---
+
+### Helper Functions
+
+#### groupByDownloadSource
+Group file sources by their download URL.
+
+```typescript
+import { groupByDownloadSource } from 'source-application';
+
+const groups = groupByDownloadSource(
+  sources,
+  invalidationsMap,
+  unavailabilitiesMap
+);
+// Returns: DownloadSourceGroup[]
+```
+
+#### groupByProfile
+Group file sources by the profile that submitted them.
+
+```typescript
+import { groupByProfile } from 'source-application';
+
+const groups = groupByProfile(sources);
+// Returns: ProfileSourceGroup[]
+```
+
+#### calculateProfileTrust
+Calculate trust score for a profile based on opinions.
+
+```typescript
+import { calculateProfileTrust } from 'source-application';
+
+const trustScore = calculateProfileTrust(profileTokenId, opinions);
+// Returns: number
+```
+
+#### aggregateSourceScore
+Aggregate all opinion data for a file source.
+
+```typescript
+import { aggregateSourceScore } from 'source-application';
+
+const scoreData = aggregateSourceScore(
+  source,
+  allSources,
+  invalidations,
+  unavailabilities,
+  profileOpinions
+);
+// Returns: FileSourceWithScore
+```
+
+---
+
+## TypeScript Types
+
+### Core Interfaces
+
+```typescript
+import type {
+  FileSource,
+  InvalidFileSource,
+  UnavailableSource,
+  ProfileOpinion,
+  ReputationProof,
+  RPBox
+} from 'source-application';
+```
+
+**FileSource**
+```typescript
+interface FileSource {
+  id: string;              // Box ID
+  fileHash: string;        // Blake2b256 hash
+  sourceUrl: string;       // Download URL
+  ownerTokenId: string;    // Profile token ID
+  reputationAmount: number;
+  timestamp: number;
+  isLocked: boolean;
+  transactionId: string;
+}
+```
+
+**InvalidFileSource**
+```typescript
+interface InvalidFileSource {
+  id: string;
+  targetBoxId: string;     // Box being invalidated
+  authorTokenId: string;
+  reputationAmount: number;
+  timestamp: number;
+  transactionId: string;
+}
+```
+
+**UnavailableSource**
+```typescript
+interface UnavailableSource {
+  id: string;
+  sourceUrl: string;       // URL being marked unavailable
+  authorTokenId: string;
+  reputationAmount: number;
+  timestamp: number;
+  transactionId: string;
+}
+```
+
+**ProfileOpinion**
+```typescript
+interface ProfileOpinion {
+  id: string;
+  targetProfileTokenId: string;
+  isTrusted: boolean;      // true = trust, false = distrust
+  authorTokenId: string;
+  reputationAmount: number;
+  timestamp: number;
+  transactionId: string;
+}
+```
+
+---
+
+## Svelte Stores
+
+All stores are reactive and can be subscribed to in Svelte applications.
+
+```typescript
+import {
+  reputation_proof,       // Current user's profile
+  fileSources,           // Cached file sources
+  currentSearchHash,     // Currently searched hash
+  invalidFileSources,    // Cached invalidations
+  unavailableSources,    // Cached unavailabilities
+  profileOpinions,       // Cached profile opinions
+  isLoading,             // Loading state
+  error                  // Error messages
+} from 'source-application';
+
+// Usage in Svelte
+$: profile = $reputation_proof;
+$: sources = $fileSources;
+```
+
+---
+
+## Environment Constants
+
+```typescript
+import {
+  PROFILE_TYPE_NFT_ID,
+  FILE_SOURCE_TYPE_NFT_ID,
+  INVALID_FILE_SOURCE_TYPE_NFT_ID,
+  UNAVAILABLE_SOURCE_TYPE_NFT_ID,
+  PROFILE_OPINION_TYPE_NFT_ID,
+  PROFILE_TOTAL_SUPPLY,
+  explorer_uri,              // Writable store
+  web_explorer_uri_tx,       // Writable store
+  web_explorer_uri_addr,     // Writable store
+  web_explorer_uri_tkn       // Writable store
+} from 'source-application';
+
+// Customize explorer URIs
+explorer_uri.set('https://api.ergoplatform.com');
+```
+
+---
+
+## Complete Example
+
+```svelte
+<script>
+  import {
+    ProfileCard,
+    FileSourceCreation,
+    FileSourceCard,
+    fetchProfile,
+    searchByHash,
+    reputation_proof,
+    fileSources,
+    invalidFileSources,
+    unavailableSources
+  } from 'source-application';
+  
+  let ergo; // Wallet connector
+  let fileHash = "";
+  
+  // Load profile
+  async function loadProfile() {
+    if (ergo) {
+      await fetchProfile(ergo);
+    }
+  }
+  
+  // Search for sources
+  async function search() {
+    if (fileHash) {
+      await searchByHash(fileHash);
+    }
+  }
+  
+  $: profile = $reputation_proof;
+  $: sources = $fileSources[fileHash]?.data || [];
+</script>
+
+<!-- Profile Management -->
+<ProfileCard {profile} />
+
+<!-- Add New Source -->
+{#if profile}
+  <FileSourceCreation hasProfile={true} />
+{/if}
+
+<!-- Search -->
+<input bind:value={fileHash} placeholder="Enter file hash" />
+<button on:click={search}>Search</button>
+
+<!-- Display Results -->
+{#each sources as source}
+  <FileSourceCard
+    {source}
+    confirmations={sources.filter(s => s.sourceUrl === source.sourceUrl)}
+    invalidations={$invalidFileSources[source.id]?.data || []}
+    unavailabilities={$unavailableSources[source.sourceUrl]?.data || []}
+  />
+{/each}
+```
+
+---
 
 ## Notes
 
-  * If custom stores are not provided, the component uses local stores with default values.
-  * The component requires the user to have an Ergo wallet connected for interaction.
-  * Changes in the stores are immediately reflected in the component.
+- All blockchain interactions require an Ergo wallet connection
+- Functions return transaction IDs that can be tracked on the blockchain
+- Stores use caching with configurable duration (default: 5 minutes)
+- Components are self-contained and work as standalone islands
+- All URLs are sanitized for security
 
-# TypeScript SDK
+## License
 
-The library exposes core TypeScript functions and types, allowing you to build custom interfaces or integrate the forum logic into any TypeScript framework (React, Vue, Angular, etc.).
-
-## 1. Fetching Data (`commentFetch`)
-
-Functions to retrieve data from the blockchain.
-
-```typescript
-import { fetchComments, fetchProfile, getTimestampFromBlockId } from 'forum-application';
-
-// Fetch all comments for a specific topic/project ID
-const topicId = "your_topic_id_here";
-const comments = await fetchComments(topicId);
-
-// Fetch the reputation profile of the connected user
-// 'ergo' is the wallet connector object (e.g., from nautilus)
-const profile = await fetchProfile(ergo);
-
-// Get timestamp for a block
-const timestamp = await getTimestampFromBlockId("block_id_here");
-```
-
-## 2. Data Structures (`commentObject`)
-
-Types and helper functions for handling comment data.
-
-```typescript
-import { type Comment, getScore } from 'forum-application';
-
-// Comment Interface
-// interface Comment {
-//     id: string;
-//     text: string;
-//     authorProfileTokenId: string;
-//     ...
-// }
-
-// Calculate the score of a comment (based on replies and sentiment)
-const score = getScore(myComment);
-```
-
-## 3. Actions & State (`commentStore`)
-
-Functions to interact with the blockchain (create comments, replies, etc.).
-Note: The `...API` functions return Promises and do not rely on Svelte stores, making them suitable for any framework.
-
-**Important:** You must call `fetchProfile(ergo)` at least once before calling `postCommentAPI`, `replyToCommentAPI`, or `flagSpamAPI`, so that the library knows the user's profile state.
-
-```typescript
-import { 
-  postCommentAPI, 
-  replyToCommentAPI, 
-  flagSpamAPI, 
-  createProfileBox 
-} from 'forum-application';
-
-const topicId = "your_topic_id_here";
-
-// Create a new comment
-// Returns the new Comment object
-const newComment = await postCommentAPI(topicId, "This is my comment", true); // true = positive, false = negative
-
-// Reply to a comment
-const parentCommentId = "parent_box_id";
-const reply = await replyToCommentAPI(parentCommentId, topicId, "My reply", true);
-
-// Flag a comment as spam
-await flagSpamAPI("spam_comment_id");
-
-// Create a profile (if fetchProfile returns null)
-await createProfileBox();
-```
-
-### Svelte Stores
-If you are using Svelte, you can use the reactive stores directly:
-
-```typescript
-import { threads, loadThreads, postComment } from 'forum-application';
-
-// Subscribe to threads
-threads.subscribe(comments => { ... });
-
-// Load threads into the store
-await loadThreads();
-
-// Post using the store (updates 'threads' automatically)
-await postComment("My comment", true);
-```
-
+MIT
