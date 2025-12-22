@@ -17,12 +17,10 @@
         ThumbsDown,
         Copy,
         ExternalLink,
-        Edit2,
         Check,
         X,
         Pen,
-        CloudOff,
-        AlertTriangle,
+        CloudOff
     } from "lucide-svelte";
     import * as jdenticon from "jdenticon";
     import { get } from "svelte/store";

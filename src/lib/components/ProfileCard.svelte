@@ -2,8 +2,7 @@
     import { Button } from "$lib/components/ui/button/index.js";
     import { User, Copy, Wallet } from "lucide-svelte";
     import { createProfileBox } from "$lib/ergo/sourceStore";
-    import { reputation_proof } from "$lib/ergo/store";
-    import { address } from "ergo-reputation-system";
+    import { address, reputation_proof } from "$lib/ergo/store";
 
     // Props for island mode
     export let profile: any = null;
