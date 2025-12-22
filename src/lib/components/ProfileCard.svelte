@@ -2,23 +2,20 @@
     import { Button } from "$lib/components/ui/button/index.js";
     import { User, Copy, Wallet } from "lucide-svelte";
     import { createProfileBox } from "$lib/ergo/sourceStore";
-    import { address, reputation_proof } from "$lib/ergo/store";
+    import { type ReputationProof } from "$lib/ergo/object";
 
     // Props for island mode
-    export let profile: any = null;
+    export let profile: ReputationProof | null = null;
+    export let address: string | null = null;
+    export let explorerUri: string;
     export let onProfileCreated: ((txId: string) => void) | null = null;
 
     let isCreating = false;
 
-    // Use reactive statements to sync with stores if not in island mode
-    $: if (!profile && $reputation_proof) {
-        profile = $reputation_proof;
-    }
-
     async function handleCreateProfile() {
         isCreating = true;
         try {
-            const tx = await createProfileBox();
+            const tx = await createProfileBox(explorerUri);
             console.log("Profile created, tx:", tx);
             if (onProfileCreated) {
                 onProfileCreated(tx);
@@ -72,7 +69,8 @@
                             variant="ghost"
                             size="icon"
                             class="flex-shrink-0"
-                            on:click={() => copyToClipboard(profile.token_id)}
+                            on:click={() =>
+                                copyToClipboard(profile?.token_id || "")}
                             disabled={!profile.token_id}
                         >
                             <Copy class="w-4 h-4" />
@@ -94,7 +92,7 @@
                             <p
                                 class="font-mono text-xs break-all text-foreground"
                             >
-                                {profile.owner_address || $address || "N/A"}
+                                {profile.owner_address || address || "N/A"}
                             </p>
                         </div>
                         <Button
@@ -103,9 +101,9 @@
                             class="flex-shrink-0"
                             on:click={() =>
                                 copyToClipboard(
-                                    profile.owner_address || $address,
+                                    profile?.owner_address || address || "",
                                 )}
-                            disabled={!profile.owner_address && !$address}
+                            disabled={!profile.owner_address && !address}
                         >
                             <Copy class="w-4 h-4" />
                         </Button>
@@ -115,13 +113,18 @@
                 <!-- Reputation Amount -->
                 <div class="p-4 bg-muted/50 rounded-lg border border-border">
                     <div class="text-sm">
-                        <span class="text-muted-foreground">Total Reputation:</span>
+                        <span class="text-muted-foreground"
+                            >Total Reputation:</span
+                        >
                         <span class="font-semibold ml-2"
-                            >{profile.total_amount?.toLocaleString() || "0"}</span
+                            >{profile.total_amount?.toLocaleString() ||
+                                "0"}</span
                         >
                     </div>
                     <div class="text-sm mt-2">
-                        <span class="text-muted-foreground">Number of Boxes:</span>
+                        <span class="text-muted-foreground"
+                            >Number of Boxes:</span
+                        >
                         <span class="font-semibold ml-2"
                             >{profile.number_of_boxes || 0}</span
                         >
@@ -147,7 +150,9 @@
                 disabled={isCreating}
                 class="mx-auto"
             >
-                {isCreating ? "Creating Profile..." : "Create Reputation Profile"}
+                {isCreating
+                    ? "Creating Profile..."
+                    : "Create Reputation Profile"}
             </Button>
         </div>
     {/if}

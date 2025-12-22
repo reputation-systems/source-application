@@ -28,9 +28,7 @@ export {
     markUnavailableSource,
     trustProfile,
     searchByHash,
-    loadAllSources,
-    loadProfileOpinions,
-    loadSourcesByProfile
+    loadAllSources
 } from './ergo/sourceStore';
 
 // ===== SOURCE OBJECT TYPES & HELPERS =====
@@ -93,3 +91,4 @@ export {
 export { default as ProfileCard } from './components/ProfileCard.svelte';
 export { default as FileSourceCreation } from './components/FileSourceCreation.svelte';
 export { default as FileSourceCard } from './components/FileSourceCard.svelte';
+export { default as FileCard } from './components/FileCard.svelte';

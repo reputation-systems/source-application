@@ -5,27 +5,26 @@
     import { Label } from "$lib/components/ui/label/index.js";
     import { Textarea } from "$lib/components/ui/textarea";
     import { AlertTriangle } from "lucide-svelte";
-    import { reputation_proof } from "$lib/ergo/store";
     import { type ReputationProof } from "$lib/ergo/object";
 
     // Props for island mode
     export let profile: ReputationProof | null = null;
-    const hasProfile = profile !== null;
+    export let explorerUri: string;
     export let onSourceAdded: ((txId: string) => void) | null = null;
+
     let className: string = "";
     export { className as class };
 
+    const hasProfile = profile !== null;
     const baseClasses = "bg-card p-6 rounded-lg border";
-    
+
     let newFileHash = "";
     let newSourceUrl = "";
     let isAddingSource = false;
     let addError: string | null = null;
 
-    reputation_proof.set(profile);
-
     async function handleAddSource() {
-        if (!newFileHash.trim() || !newSourceUrl.trim()) return;
+        if (!newFileHash.trim() || !newSourceUrl.trim() || !profile) return;
 
         isAddingSource = true;
         addError = null;
@@ -33,6 +32,8 @@
             const tx = await addFileSource(
                 newFileHash.trim(),
                 newSourceUrl.trim(),
+                profile,
+                explorerUri,
             );
             console.log("Source added, tx:", tx);
             newFileHash = "";
@@ -93,7 +94,7 @@
                 id="source-url"
                 bind:value={newSourceUrl}
                 placeholder="https://example.com/file.zip or ipfs://... or magnet:..."
-                rows="2"
+                rows={2}
                 class="font-mono text-sm"
                 disabled={!hasProfile}
             />

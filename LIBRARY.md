@@ -274,7 +274,7 @@ await loadAllSources();
 // Updates fileSources store
 ```
 
-#### loadSourcesByProfile
+#### loadSourcesByProfile  [not implemented]
 Load all sources and opinions for a profile.
 
 ```typescript
@@ -284,7 +284,7 @@ await loadSourcesByProfile(profileTokenId);
 // Updates fileSources, profileInvalidations, profileUnavailabilities stores
 ```
 
-#### loadProfileOpinions
+#### loadProfileOpinions  [not implemented]
 Load trust/distrust opinions for a profile.
 
 ```typescript

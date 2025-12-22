@@ -2,15 +2,19 @@
     import { Button } from "$lib/components/ui/button/index.js";
     import { Input } from "$lib/components/ui/input/index.js";
     import { Label } from "$lib/components/ui/label/index.js";
-    import { X, RotateCcw } from "lucide-svelte"; // Importamos icono para reset
-    import {
-        explorer_uri,
-        web_explorer_uri_tx,
-        web_explorer_uri_addr,
-        web_explorer_uri_tkn,
-    } from "$lib/ergo/envs";
+    import { X, RotateCcw } from "lucide-svelte";
 
     export let show = false;
+    export let explorerUri: string;
+    export let webTx: string;
+    export let webAddr: string;
+    export let webTkn: string;
+    export let onSave: (settings: {
+        explorerUri: string;
+        webTx: string;
+        webAddr: string;
+        webTkn: string;
+    }) => void;
 
     // Valores por defecto definidos en constantes para fácil mantenimiento
     const DEFAULTS = {
@@ -20,16 +24,39 @@
         tkn: "https://sigmaspace.io/en/token/",
     };
 
+    let localExplorerUri = explorerUri;
+    let localWebTx = webTx;
+    let localWebAddr = webAddr;
+    let localWebTkn = webTkn;
+
+    // Sync local state when props change (e.g. when modal opens)
+    $: if (show) {
+        localExplorerUri = explorerUri;
+        localWebTx = webTx;
+        localWebAddr = webAddr;
+        localWebTkn = webTkn;
+    }
+
     function close() {
         show = false;
     }
 
+    function handleSave() {
+        onSave({
+            explorerUri: localExplorerUri,
+            webTx: localWebTx,
+            webAddr: localWebAddr,
+            webTkn: localWebTkn,
+        });
+        close();
+    }
+
     // Función para restaurar valores
     function restoreDefaults() {
-        $explorer_uri = DEFAULTS.api;
-        $web_explorer_uri_tx = DEFAULTS.tx;
-        $web_explorer_uri_addr = DEFAULTS.addr;
-        $web_explorer_uri_tkn = DEFAULTS.tkn;
+        localExplorerUri = DEFAULTS.api;
+        localWebTx = DEFAULTS.tx;
+        localWebAddr = DEFAULTS.addr;
+        localWebTkn = DEFAULTS.tkn;
     }
 </script>
 
@@ -51,7 +78,7 @@
                 <div class="flex gap-2">
                     <Input
                         id="explorer-api"
-                        bind:value={$explorer_uri}
+                        bind:value={localExplorerUri}
                         placeholder={DEFAULTS.api}
                     />
                 </div>
@@ -64,7 +91,7 @@
                 <Label for="web-tx">Transaction Explorer URL</Label>
                 <Input
                     id="web-tx"
-                    bind:value={$web_explorer_uri_tx}
+                    bind:value={localWebTx}
                     placeholder={DEFAULTS.tx}
                 />
                 <p class="text-xs text-muted-foreground">
@@ -76,7 +103,7 @@
                 <Label for="web-addr">Address Explorer URL</Label>
                 <Input
                     id="web-addr"
-                    bind:value={$web_explorer_uri_addr}
+                    bind:value={localWebAddr}
                     placeholder={DEFAULTS.addr}
                 />
                 <p class="text-xs text-muted-foreground">
@@ -88,7 +115,7 @@
                 <Label for="web-tkn">Token Explorer URL</Label>
                 <Input
                     id="web-tkn"
-                    bind:value={$web_explorer_uri_tkn}
+                    bind:value={localWebTkn}
                     placeholder={DEFAULTS.tkn}
                 />
                 <p class="text-xs text-muted-foreground">
@@ -110,7 +137,7 @@
                 Restore Defaults
             </Button>
 
-            <Button on:click={close}>Done</Button>
+            <Button on:click={handleSave}>Done</Button>
         </div>
     </div>
 {/if}

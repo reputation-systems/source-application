@@ -1,12 +1,10 @@
-import { get } from 'svelte/store';
 import { type FileSource, type ProfileOpinion } from './sourceObject';
 import { hexOrUtf8ToBytes, hexToBytes, hexToUtf8, serializedToRendered } from './utils';
 import {
     FILE_SOURCE_TYPE_NFT_ID,
     INVALID_FILE_SOURCE_TYPE_NFT_ID,
     UNAVAILABLE_SOURCE_TYPE_NFT_ID,
-    PROFILE_OPINION_TYPE_NFT_ID,
-    explorer_uri
+    PROFILE_OPINION_TYPE_NFT_ID
 } from './envs';
 import { ergo_tree_hash } from './contract';
 import { SByte, SColl } from '@fleet-sdk/core';
@@ -20,8 +18,8 @@ const LIMIT_PER_PAGE = 100;
 /**
  * Gets the timestamp of a block given its block ID.
  */
-export async function getTimestampFromBlockId(blockId: string): Promise<number> {
-    const url = `${get(explorer_uri)}/api/v1/blocks/${blockId}`;
+export async function getTimestampFromBlockId(blockId: string, explorerUri: string): Promise<number> {
+    const url = `${explorerUri}/api/v1/blocks/${blockId}`;
 
     try {
         const response = await fetch(url, { method: "GET" });
@@ -48,7 +46,8 @@ export async function getTimestampFromBlockId(blockId: string): Promise<number> 
  */
 async function searchBoxes(
     r4TypeNftId: string,
-    r5Value: string
+    r5Value: string,
+    explorerUri: string
 ): Promise<ApiBox[]> {
     const boxes: ApiBox[] = [];
 
@@ -64,7 +63,7 @@ async function searchBoxes(
         let moreDataAvailable = true;
 
         while (moreDataAvailable) {
-            const url = `${get(explorer_uri)}/api/v1/boxes/unspent/search?offset=${offset}&limit=${LIMIT_PER_PAGE}`;
+            const url = `${explorerUri}/api/v1/boxes/unspent/search?offset=${offset}&limit=${LIMIT_PER_PAGE}`;
 
             const finalBody = {
                 "ergoTreeTemplateHash": ergo_tree_hash,
@@ -105,9 +104,9 @@ async function searchBoxes(
  * Fetch all FILE_SOURCE boxes for a specific file hash.
  * Returns all sources (URLs) where this file can be found.
  */
-export async function fetchFileSourcesByHash(fileHash: string): Promise<FileSource[]> {
+export async function fetchFileSourcesByHash(fileHash: string, explorerUri: string): Promise<FileSource[]> {
     console.log("Fetching file sources for hash:", fileHash);
-    const boxes = await searchBoxes(FILE_SOURCE_TYPE_NFT_ID, fileHash);
+    const boxes = await searchBoxes(FILE_SOURCE_TYPE_NFT_ID, fileHash, explorerUri);
 
     const sources: FileSource[] = [];
 
@@ -134,7 +133,7 @@ export async function fetchFileSourcesByHash(fileHash: string): Promise<FileSour
             sourceUrl: sourceUrl,
             ownerTokenId: box.assets[0].tokenId,
             reputationAmount: Number(box.assets[0].amount),
-            timestamp: await getTimestampFromBlockId(box.blockId),
+            timestamp: await getTimestampFromBlockId(box.blockId, explorerUri),
             isLocked: false,
             transactionId: box.transactionId
         };
@@ -149,9 +148,9 @@ export async function fetchFileSourcesByHash(fileHash: string): Promise<FileSour
 /**
  * Fetch all INVALID_FILE_SOURCE boxes for a specific source box.
  */
-export async function fetchInvalidFileSources(sourceBoxId: string): Promise<InvalidFileSource[]> {
+export async function fetchInvalidFileSources(sourceBoxId: string, explorerUri: string): Promise<InvalidFileSource[]> {
     console.log("Fetching invalidations for source:", sourceBoxId);
-    const boxes = await searchBoxes(INVALID_FILE_SOURCE_TYPE_NFT_ID, sourceBoxId);
+    const boxes = await searchBoxes(INVALID_FILE_SOURCE_TYPE_NFT_ID, sourceBoxId, explorerUri);
 
     const invalidations: InvalidFileSource[] = [];
 
@@ -163,7 +162,7 @@ export async function fetchInvalidFileSources(sourceBoxId: string): Promise<Inva
             targetBoxId: sourceBoxId,
             authorTokenId: box.assets[0].tokenId,
             reputationAmount: Number(box.assets[0].amount),
-            timestamp: await getTimestampFromBlockId(box.blockId),
+            timestamp: await getTimestampFromBlockId(box.blockId, explorerUri),
             transactionId: box.transactionId
         };
 
@@ -176,9 +175,9 @@ export async function fetchInvalidFileSources(sourceBoxId: string): Promise<Inva
 /**
  * Fetch all UNAVAILABLE_SOURCE boxes for a specific URL.
  */
-export async function fetchUnavailableSources(sourceUrl: string): Promise<UnavailableSource[]> {
+export async function fetchUnavailableSources(sourceUrl: string, explorerUri: string): Promise<UnavailableSource[]> {
     console.log("Fetching unavailabilities for URL:", sourceUrl);
-    const boxes = await searchBoxes(UNAVAILABLE_SOURCE_TYPE_NFT_ID, sourceUrl);
+    const boxes = await searchBoxes(UNAVAILABLE_SOURCE_TYPE_NFT_ID, sourceUrl, explorerUri);
 
     const unavailabilities: UnavailableSource[] = [];
 
@@ -190,7 +189,7 @@ export async function fetchUnavailableSources(sourceUrl: string): Promise<Unavai
             sourceUrl: sourceUrl,
             authorTokenId: box.assets[0].tokenId,
             reputationAmount: Number(box.assets[0].amount),
-            timestamp: await getTimestampFromBlockId(box.blockId),
+            timestamp: await getTimestampFromBlockId(box.blockId, explorerUri),
             transactionId: box.transactionId
         };
 
@@ -204,9 +203,9 @@ export async function fetchUnavailableSources(sourceUrl: string): Promise<Unavai
  * Fetch all PROFILE_OPINION boxes targeting a specific profile.
  * Returns all trust/distrust opinions for this profile.
  */
-export async function fetchProfileOpinions(profileTokenId: string): Promise<ProfileOpinion[]> {
+export async function fetchProfileOpinions(profileTokenId: string, explorerUri: string): Promise<ProfileOpinion[]> {
     console.log("Fetching profile opinions for:", profileTokenId);
-    const boxes = await searchBoxes(PROFILE_OPINION_TYPE_NFT_ID, profileTokenId);
+    const boxes = await searchBoxes(PROFILE_OPINION_TYPE_NFT_ID, profileTokenId, explorerUri);
 
     const opinions: ProfileOpinion[] = [];
 
@@ -220,7 +219,7 @@ export async function fetchProfileOpinions(profileTokenId: string): Promise<Prof
             isTrusted: box.additionalRegisters.R8?.renderedValue === 'true',
             authorTokenId: box.assets[0].tokenId,
             reputationAmount: Number(box.assets[0].amount),
-            timestamp: await getTimestampFromBlockId(box.blockId),
+            timestamp: await getTimestampFromBlockId(box.blockId, explorerUri),
             transactionId: box.transactionId
         };
 
@@ -234,11 +233,11 @@ export async function fetchProfileOpinions(profileTokenId: string): Promise<Prof
  * Fetch all FILE_SOURCE boxes (for browsing).
  * Returns recent file sources sorted by timestamp.
  */
-export async function fetchAllFileSources(limit: number = 50): Promise<FileSource[]> {
+export async function fetchAllFileSources(limit: number = 50, explorerUri: string): Promise<FileSource[]> {
     console.log("Fetching all file sources...");
 
     try {
-        const url = `${get(explorer_uri)}/api/v1/boxes/unspent/search?offset=0&limit=${limit}`;
+        const url = `${explorerUri}/api/v1/boxes/unspent/search?offset=0&limit=${limit}`;
 
         const searchBody = {
             registers: {
@@ -302,7 +301,7 @@ export async function fetchAllFileSources(limit: number = 50): Promise<FileSourc
                 sourceUrl: sourceUrl,
                 ownerTokenId: box.assets[0].tokenId,
                 reputationAmount: Number(box.assets[0].amount),
-                timestamp: await getTimestampFromBlockId(box.blockId),
+                timestamp: await getTimestampFromBlockId(box.blockId, explorerUri),
                 isLocked: false,
                 transactionId: box.transactionId
             };
@@ -323,11 +322,11 @@ export async function fetchAllFileSources(limit: number = 50): Promise<FileSourc
  * Fetch all FILE_SOURCE boxes for a specific profile token ID.
  * Returns file sources created by this profile.
  */
-export async function fetchFileSourcesByProfile(profileTokenId: string, limit: number = 50): Promise<FileSource[]> {
+export async function fetchFileSourcesByProfile(profileTokenId: string, limit: number = 50, explorerUri: string): Promise<FileSource[]> {
     console.log("Fetching file sources for profile:", profileTokenId);
 
     try {
-        const url = `${get(explorer_uri)}/api/v1/boxes/unspent/search?offset=0&limit=${limit}`;
+        const url = `${explorerUri}/api/v1/boxes/unspent/search?offset=0&limit=${limit}`;
 
         const searchBody = {
             registers: {
@@ -391,7 +390,7 @@ export async function fetchFileSourcesByProfile(profileTokenId: string, limit: n
                 sourceUrl: sourceUrl,
                 ownerTokenId: box.assets[0].tokenId,
                 reputationAmount: Number(box.assets[0].amount),
-                timestamp: await getTimestampFromBlockId(box.blockId),
+                timestamp: await getTimestampFromBlockId(box.blockId, explorerUri),
                 isLocked: false,
                 transactionId: box.transactionId
             };
@@ -411,11 +410,11 @@ export async function fetchFileSourcesByProfile(profileTokenId: string, limit: n
 /**
  * Fetch all INVALID_FILE_SOURCE boxes created by a specific profile.
  */
-export async function fetchInvalidFileSourcesByProfile(profileTokenId: string, limit: number = 50): Promise<InvalidFileSource[]> {
+export async function fetchInvalidFileSourcesByProfile(profileTokenId: string, limit: number = 50, explorerUri: string): Promise<InvalidFileSource[]> {
     console.log("Fetching invalidations by profile:", profileTokenId);
 
     try {
-        const url = `${get(explorer_uri)}/api/v1/boxes/unspent/search?offset=0&limit=${limit}`;
+        const url = `${explorerUri}/api/v1/boxes/unspent/search?offset=0&limit=${limit}`;
 
         const searchBody = {
             registers: {
@@ -448,7 +447,7 @@ export async function fetchInvalidFileSourcesByProfile(profileTokenId: string, l
                 targetBoxId: hexToUtf8(box.additionalRegisters.R5?.renderedValue || "") || "",
                 authorTokenId: box.assets[0].tokenId,
                 reputationAmount: Number(box.assets[0].amount),
-                timestamp: await getTimestampFromBlockId(box.blockId),
+                timestamp: await getTimestampFromBlockId(box.blockId, explorerUri),
                 transactionId: box.transactionId
             });
         }
@@ -462,11 +461,11 @@ export async function fetchInvalidFileSourcesByProfile(profileTokenId: string, l
 /**
  * Fetch all UNAVAILABLE_SOURCE boxes created by a specific profile.
  */
-export async function fetchUnavailableSourcesByProfile(profileTokenId: string, limit: number = 50): Promise<UnavailableSource[]> {
+export async function fetchUnavailableSourcesByProfile(profileTokenId: string, limit: number = 50, explorerUri: string): Promise<UnavailableSource[]> {
     console.log("Fetching unavailabilities by profile:", profileTokenId);
 
     try {
-        const url = `${get(explorer_uri)}/api/v1/boxes/unspent/search?offset=0&limit=${limit}`;
+        const url = `${explorerUri}/api/v1/boxes/unspent/search?offset=0&limit=${limit}`;
 
         const searchBody = {
             registers: {
@@ -499,7 +498,7 @@ export async function fetchUnavailableSourcesByProfile(profileTokenId: string, l
                 sourceUrl: hexToUtf8(box.additionalRegisters.R5?.renderedValue || "") || "",
                 authorTokenId: box.assets[0].tokenId,
                 reputationAmount: Number(box.assets[0].amount),
-                timestamp: await getTimestampFromBlockId(box.blockId),
+                timestamp: await getTimestampFromBlockId(box.blockId, explorerUri),
                 transactionId: box.transactionId
             });
         }
@@ -513,11 +512,11 @@ export async function fetchUnavailableSourcesByProfile(profileTokenId: string, l
 /**
  * Fetch all PROFILE_OPINION boxes created by a specific profile.
  */
-export async function fetchProfileOpinionsByAuthor(authorTokenId: string, limit: number = 50): Promise<ProfileOpinion[]> {
+export async function fetchProfileOpinionsByAuthor(authorTokenId: string, limit: number = 50, explorerUri: string): Promise<ProfileOpinion[]> {
     console.log("Fetching profile opinions by author:", authorTokenId);
 
     try {
-        const url = `${get(explorer_uri)}/api/v1/boxes/unspent/search?offset=0&limit=${limit}`;
+        const url = `${explorerUri}/api/v1/boxes/unspent/search?offset=0&limit=${limit}`;
 
         const searchBody = {
             registers: {
@@ -551,7 +550,7 @@ export async function fetchProfileOpinionsByAuthor(authorTokenId: string, limit:
                 isTrusted: box.additionalRegisters.R8?.renderedValue === 'true',
                 authorTokenId: box.assets[0].tokenId,
                 reputationAmount: Number(box.assets[0].amount),
-                timestamp: await getTimestampFromBlockId(box.blockId),
+                timestamp: await getTimestampFromBlockId(box.blockId, explorerUri),
                 transactionId: box.transactionId
             });
         }

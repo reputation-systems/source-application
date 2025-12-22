@@ -9,11 +9,10 @@ import {
 } from '@fleet-sdk/core';
 import { SColl, SByte, SBool } from '@fleet-sdk/serializer';
 import { type RPBox } from '$lib/ergo/object';
-import { explorer_uri, PROFILE_TYPE_NFT_ID } from './envs';
+import { PROFILE_TYPE_NFT_ID } from './envs';
 import { hexToBytes, hexOrUtf8ToBytes } from './utils';
 import { ergo_tree_address } from './contract';
 import { stringToBytes } from '@scure/base';
-import { get } from 'svelte/store';
 
 /**
  * Generates or modifies a reputation proof by building and submitting a transaction.
@@ -24,6 +23,7 @@ import { get } from 'svelte/store';
  * @param polarization `true` for a positive proof, `false` for a negative one.
  * @param content The JSON or string content for register R9.
  * @param is_locked `true` to make the resulting box immutable.
+ * @param explorerUri The explorer URI.
  * @param input_proof The existing RPBox to spend from (for splitting or modifying).
  * @returns A promise that resolves to the transaction ID string, or null on failure.
  */
@@ -35,6 +35,7 @@ export async function generate_reputation_proof(
     polarization: boolean,
     content: object | string | null,
     is_locked: boolean = false,
+    explorerUri: string,
     input_proof?: RPBox,
 ): Promise<string | null> {
 
@@ -50,6 +51,7 @@ export async function generate_reputation_proof(
         input_proof
     });
 
+    // @ts-ignore
     const creatorAddressString = await ergo.get_change_address();
     if (!creatorAddressString) {
         throw new Error("Could not get the creator's address from the wallet.");
@@ -57,7 +59,7 @@ export async function generate_reputation_proof(
     const creatorP2PKAddress = ErgoAddress.fromBase58(creatorAddressString);
 
     // Fetch the Type NFT box to be used in dataInputs. This is required by the contract.
-    const typeNftBoxResponse = await fetch(`${get(explorer_uri)}/api/v1/boxes/byTokenId/${PROFILE_TYPE_NFT_ID}`);
+    const typeNftBoxResponse = await fetch(`${explorerUri}/api/v1/boxes/byTokenId/${PROFILE_TYPE_NFT_ID}`);
     if (!typeNftBoxResponse.ok) {
         alert("Could not fetch the Type NFT box. Aborting transaction.");
         return null;
@@ -67,6 +69,7 @@ export async function generate_reputation_proof(
     console.log("type nft box ", typeNftBox)
 
     // Inputs for the transaction
+    // @ts-ignore
     const utxos = await ergo.get_utxos();
     const inputs: Box<Amount>[] = input_proof ? [input_proof.box, ...utxos] : utxos;
     let dataInputs = [typeNftBox];
@@ -135,6 +138,7 @@ export async function generate_reputation_proof(
 
     // --- Build and submit the transaction ---
     try {
+        // @ts-ignore
         const unsignedTransaction = await new TransactionBuilder(await ergo.get_current_height())
             .from(inputs)
             .to(outputs)
@@ -144,7 +148,9 @@ export async function generate_reputation_proof(
             .build()
             .toEIP12Object();
 
+        // @ts-ignore
         const signedTransaction = await ergo.sign_tx(unsignedTransaction);
+        // @ts-ignore
         const transactionId = await ergo.submit_tx(signedTransaction);
 
 
@@ -153,6 +159,7 @@ export async function generate_reputation_proof(
         return transactionId;
     } catch (e) {
         console.error("Error building or submitting transaction:", e);
+        // @ts-ignore
         alert(`Transaction failed: ${e.message}`);
         return null;
     }

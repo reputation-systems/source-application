@@ -2,13 +2,14 @@
     import { Button } from "$lib/components/ui/button/index.js";
     import { X, User, Copy, ExternalLink, Wallet } from "lucide-svelte";
     import { createProfileBox } from "$lib/ergo/sourceStore";
-    import { web_explorer_uri_tx } from "$lib/ergo/envs";
-    import { address, reputation_proof } from "$lib/ergo/store";
+    import { type ReputationProof } from "$lib/ergo/object";
 
     export let show = false;
     export let profile_creation_tx = "";
-
-    $: profile = $reputation_proof;
+    export let address: string | null = null;
+    export let profile: ReputationProof | null = null;
+    export let webExplorerUriTx: string;
+    export let explorerUri: string;
 
     let isCreating = false;
 
@@ -16,7 +17,7 @@
         if (!profile) {
             isCreating = true;
             try {
-                profile_creation_tx = await createProfileBox();
+                profile_creation_tx = await createProfileBox(explorerUri);
                 show = false;
             } catch (e) {
                 console.error(e);
@@ -73,15 +74,15 @@
                                     </p>
                                 </div>
                                 <p class="font-mono text-sm break-all">
-                                    {$address || "Not connected"}
+                                    {address || "Not connected"}
                                 </p>
                             </div>
                             <Button
                                 variant="ghost"
                                 size="icon"
                                 class="h-8 w-8 shrink-0"
-                                on:click={() => copyToClipboard($address || "")}
-                                disabled={!$address}
+                                on:click={() => copyToClipboard(address || "")}
+                                disabled={!address}
                             >
                                 <Copy class="w-4 h-4" />
                             </Button>
@@ -185,14 +186,14 @@
                     <p class="text-muted-foreground text-sm">
                         Create a reputation profile to start posting comments.
                     </p>
-                    {#if $address}
+                    {#if address}
                         <div
                             class="bg-muted/50 px-3 py-1 rounded-md inline-block max-w-full"
                         >
                             <p
                                 class="text-[10px] font-mono text-muted-foreground truncate max-w-[200px] mx-auto"
                             >
-                                {$address}
+                                {address}
                             </p>
                         </div>
                     {/if}
@@ -225,7 +226,7 @@
                     </p>
                 </div>
                 <a
-                    href={`${$web_explorer_uri_tx}${profile_creation_tx}`}
+                    href={`${webExplorerUriTx}${profile_creation_tx}`}
                     target="_blank"
                     class="p-2 hover:bg-green-500/10 rounded-full transition-colors"
                 >

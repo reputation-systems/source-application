@@ -15,10 +15,15 @@
     import * as jdenticon from "jdenticon";
     import { page } from "$app/stores";
     import { goto } from "$app/navigation";
+    import { type ReputationProof } from "$lib/ergo/object";
+    import { type FileSource } from "$lib/ergo/sourceObject";
 
     export let group: DownloadSourceGroup;
     export let userProfileTokenId: string | null = null;
     export let fileHash: string;
+    export let reputationProof: ReputationProof | null = null;
+    export let explorerUri: string;
+    export let currentSources: FileSource[] = [];
 
     let isVoting = false;
     let voteError: string | null = null;
@@ -36,11 +41,17 @@
     }
 
     async function handleConfirm() {
-        if (!userProfileTokenId) return;
+        if (!userProfileTokenId || !reputationProof) return;
         isVoting = true;
         voteError = null;
         try {
-            await confirmSource(fileHash, group.sourceUrl);
+            await confirmSource(
+                fileHash,
+                group.sourceUrl,
+                reputationProof,
+                currentSources,
+                explorerUri,
+            );
         } catch (err: any) {
             voteError = err?.message || "Failed to confirm";
         } finally {
@@ -49,14 +60,18 @@
     }
 
     async function handleInvalid() {
-        if (!userProfileTokenId) return;
+        if (!userProfileTokenId || !reputationProof) return;
         isVoting = true;
         voteError = null;
         try {
             // Mark the first source in the group as invalid (or all? User said "at download source level")
             // Usually invalidating one is enough to flag the URL if we aggregate.
             // But let's invalidate the first one for now.
-            await markInvalidSource(group.sources[0].id);
+            await markInvalidSource(
+                group.sources[0].id,
+                reputationProof,
+                explorerUri,
+            );
         } catch (err: any) {
             voteError = err?.message || "Failed to mark invalid";
         } finally {
@@ -65,11 +80,15 @@
     }
 
     async function handleUnavailable() {
-        if (!userProfileTokenId) return;
+        if (!userProfileTokenId || !reputationProof) return;
         isVoting = true;
         voteError = null;
         try {
-            await markUnavailableSource(group.sourceUrl);
+            await markUnavailableSource(
+                group.sourceUrl,
+                reputationProof,
+                explorerUri,
+            );
         } catch (err: any) {
             voteError = err?.message || "Failed to mark unavailable";
         } finally {

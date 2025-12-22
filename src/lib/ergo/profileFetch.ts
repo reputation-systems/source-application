@@ -1,13 +1,10 @@
-import { get } from 'svelte/store';
 import { parseCollByteToHex, hexToBytes, hexToUtf8, serializedToRendered } from './utils';
 import {
-    PROFILE_TYPE_NFT_ID,
-    explorer_uri
+    PROFILE_TYPE_NFT_ID
 } from './envs';
 import { ergo_tree_hash } from './contract';
 import { ErgoAddress, SByte, SColl } from '@fleet-sdk/core';
 import { type RPBox, type TypeNFT, type ReputationProof, type ApiBox } from './object';
-import { reputation_proof } from './store';
 
 
 const LIMIT_PER_PAGE = 100;
@@ -109,12 +106,12 @@ async function getSerializedR7(ergo: any): Promise<{ changeAddress: string; r7Se
 }
 
 // Fetch all user boxes with pagination
-async function fetchProfileUserBoxes(r7SerializedHex: string): Promise<ApiBox[]> {
+async function fetchProfileUserBoxes(r7SerializedHex: string, explorerUri: string): Promise<ApiBox[]> {
     const allBoxes: ApiBox[] = [];
     let offset = 0;
     let moreDataAvailable = true;
 
-    const searchBody: SearchBody = {
+    const searchBody = {
         registers: {
             R7: serializedToRendered(r7SerializedHex),
             R4: PROFILE_TYPE_NFT_ID
@@ -122,7 +119,7 @@ async function fetchProfileUserBoxes(r7SerializedHex: string): Promise<ApiBox[]>
     };
 
     while (moreDataAvailable) {
-        const url = `${get(explorer_uri)}/api/v1/boxes/unspent/search?offset=${offset}&limit=${LIMIT_PER_PAGE}`;
+        const url = `${explorerUri}/api/v1/boxes/unspent/search?offset=${offset}&limit=${LIMIT_PER_PAGE}`;
         const finalBody = {
             ergoTreeTemplateHash: ergo_tree_hash,
             registers: searchBody.registers,
@@ -171,9 +168,9 @@ async function fetchProfileUserBoxes(r7SerializedHex: string): Promise<ApiBox[]>
 }
 
 // Fetch token emission amount
-async function fetchTokenEmissionAmount(tokenId: string): Promise<number | null> {
+async function fetchTokenEmissionAmount(tokenId: string, explorerUri: string): Promise<number | null> {
     try {
-        const response = await fetch(`${get(explorer_uri)}/api/v1/tokens/${tokenId}`);
+        const response = await fetch(`${explorerUri}/api/v1/tokens/${tokenId}`);
         if (!response.ok) {
             console.error(`fetchTokenEmissionAmount: Error fetching token ${tokenId}: ${response.statusText}`);
             return null;
@@ -187,13 +184,13 @@ async function fetchTokenEmissionAmount(tokenId: string): Promise<number | null>
 }
 
 // Fetch all boxes for a specific token ID
-async function fetchAllBoxesByTokenId(tokenId: string): Promise<ApiBox[]> {
+async function fetchAllBoxesByTokenId(tokenId: string, explorerUri: string): Promise<ApiBox[]> {
     const allBoxes: ApiBox[] = [];
     let offset = 0;
     let moreDataAvailable = true;
 
     while (moreDataAvailable) {
-        const url = `${get(explorer_uri)}/api/v1/boxes/unspent/byTokenId/${tokenId}?offset=${offset}&limit=${LIMIT_PER_PAGE}`;
+        const url = `${explorerUri}/api/v1/boxes/unspent/byTokenId/${tokenId}?offset=${offset}&limit=${LIMIT_PER_PAGE}`;
         try {
             const response = await fetch(url);
             if (!response.ok) {
@@ -218,36 +215,34 @@ async function fetchAllBoxesByTokenId(tokenId: string): Promise<ApiBox[]> {
  * Fetches the full ReputationProof object for the connected user,
  * by searching all boxes where R7 matches their wallet address.
  * @param ergo The connected wallet object (e.g., dApp Connector)
+ * @param explorerUri The explorer URI
  */
-export async function fetchProfile(ergo: any): Promise<ReputationProof | null> {
+export async function fetchProfile(ergo: any, explorerUri: string): Promise<ReputationProof | null> {
     try {
         const r7Data = await getSerializedR7(ergo);
         if (!r7Data) {
-            reputation_proof.set(null);
             return null;
         }
         const { changeAddress, r7SerializedHex } = r7Data;
         console.log(`Fetching profile for R7: ${r7SerializedHex}`);
 
-        const allUserBoxes = await fetchProfileUserBoxes(r7SerializedHex);
+        const allUserBoxes = await fetchProfileUserBoxes(r7SerializedHex, explorerUri);
         if (allUserBoxes.length === 0) {
             console.log('No profile boxes found for this user.');
-            reputation_proof.set(null);
             return null;
         }
 
         const first_box = allUserBoxes[0];
         const profileTokenId = first_box.assets[0].tokenId;
 
-        const emissionAmount = await fetchTokenEmissionAmount(profileTokenId);
+        const emissionAmount = await fetchTokenEmissionAmount(profileTokenId, explorerUri);
         if (emissionAmount === null) {
-            reputation_proof.set(null);
             console.warn("fetchTokenEmissionAmount returned null.")
             return null;
         }
 
         // Fetch ALL boxes for this profile token to have the complete proof
-        const allProfileBoxes = await fetchAllBoxesByTokenId(profileTokenId);
+        const allProfileBoxes = await fetchAllBoxesByTokenId(profileTokenId, explorerUri);
 
         const proof: ReputationProof = {
             token_id: profileTokenId,
@@ -278,13 +273,11 @@ export async function fetchProfile(ergo: any): Promise<ReputationProof | null> {
         }
 
         console.log(`Profile found: ${proof.token_id}, ${proof.number_of_boxes} boxes.`, proof);
-        reputation_proof.set(proof);
 
         return proof;
 
     } catch (error) {
         console.error('Error fetching profile:', error);
-        reputation_proof.set(null);
         return null;
     }
 }

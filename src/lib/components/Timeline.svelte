@@ -1,14 +1,12 @@
 <script lang="ts">
-    import { onMount } from "svelte";
-    import { fade, fly } from "svelte/transition";
+    import { fly } from "svelte/transition";
     import type { TimelineEvent } from "$lib/ergo/sourceObject";
     import * as jdenticon from "jdenticon";
-    import { get } from "svelte/store";
-    import { web_explorer_uri_tkn } from "$lib/ergo/envs";
     import { ExternalLink } from "lucide-svelte";
 
     export let events: TimelineEvent[] = [];
     export let title: string = "Opinion Timeline";
+    export let webExplorerUriTkn: string = "";
 
     $: chronologicalEvents = [...events].sort(
         (a, b) => b.timestamp - a.timestamp,
@@ -79,7 +77,7 @@
                                             )}</span
                                         >
                                         <a
-                                            href={`${get(web_explorer_uri_tkn)}${event.authorTokenId}`}
+                                            href={`${webExplorerUriTkn}${event.authorTokenId}`}
                                             target="_blank"
                                             rel="noopener noreferrer"
                                             class="text-muted-foreground hover:text-primary"

@@ -1,283 +1,414 @@
 <script lang="ts">
-    import { searchByHash, addFileSource } from "$lib/ergo/sourceStore";
     import {
-        fileSources,
-        isLoading,
-        invalidFileSources,
-        unavailableSources,
-        reputation_proof,
-    } from "$lib/ergo/store";
-    import {
-        groupByDownloadSource,
-        groupByProfile,
-        type TimelineEvent,
+        type FileSource,
+        type InvalidFileSource,
+        type UnavailableSource,
     } from "$lib/ergo/sourceObject";
     import {
-        LayoutGrid,
-        Users,
-        Search,
-        ThumbsUp,
-        AlertTriangle,
-    } from "lucide-svelte";
-    import DownloadSourceCard from "./DownloadSourceCard.svelte";
-    import ProfileSourceGroup from "./ProfileSourceGroup.svelte";
-    import Timeline from "./Timeline.svelte";
+        confirmSource,
+        markInvalidSource,
+        markUnavailableSource,
+        updateFileSource,
+    } from "$lib/ergo/sourceStore";
     import { type ReputationProof } from "$lib/ergo/object";
     import { Button } from "$lib/components/ui/button/index.js";
     import { Input } from "$lib/components/ui/input/index.js";
-    import { Label } from "$lib/components/ui/label/index.js";
+    import {
+        ThumbsUp,
+        ThumbsDown,
+        Copy,
+        ExternalLink,
+        Check,
+        X,
+        Pen,
+        CloudOff,
+    } from "lucide-svelte";
+    import * as jdenticon from "jdenticon";
+    import { page } from "$app/stores";
+    import { goto } from "$app/navigation";
 
-    export let fileHash: string;
+    export let source: FileSource;
+    export let confirmations: FileSource[] = [];
+    export let invalidations: InvalidFileSource[] = [];
+    export let unavailabilities: UnavailableSource[] = [];
+
+    // New props to replace stores
     export let profile: ReputationProof | null = null;
-    let className: string = "";
-    export { className as class };
+    export let explorerUri: string;
+    export let webExplorerUriTx: string;
+    export let webExplorerUriTkn: string;
 
-    let viewMode: "source" | "profile" | "timeline" = "source";
+    // Derived from profile
+    $: userProfileTokenId = profile?.token_id || null;
 
-    // Add Source State
-    let newSourceUrl = "";
-    let isAddingSource = false;
-    let addError: string | null = null;
+    let isVoting = false;
+    let voteError: string | null = null;
 
-    // Update global profile if provided
-    reputation_proof.set(profile);
+    $: confirmationScore = confirmations.reduce(
+        (sum, op) => sum + op.reputationAmount,
+        0,
+    );
+    $: invalidationScore = invalidations.reduce(
+        (sum, op) => sum + op.reputationAmount,
+        0,
+    );
+    $: unavailabilityScore = unavailabilities.reduce(
+        (sum, op) => sum + op.reputationAmount,
+        0,
+    );
 
-    // Fetch data when fileHash changes
-    $: if (fileHash) {
-        searchByHash(fileHash);
+    $: userHasConfirmed =
+        source.ownerTokenId === userProfileTokenId ||
+        confirmations.some((op) => op.ownerTokenId === userProfileTokenId);
+    $: userHasInvalidated = invalidations.some(
+        (op) => op.authorTokenId === userProfileTokenId,
+    );
+    $: userHasMarkedUnavailable = unavailabilities.some(
+        (op) => op.authorTokenId === userProfileTokenId,
+    );
+
+    let isEditingSource = false;
+    let newSourceUrl = source.sourceUrl;
+    let isUpdatingSource = false;
+
+    function getAvatarSvg(tokenId: string, size = 40): string {
+        return jdenticon.toSvg(tokenId, size);
     }
 
-    $: sources = $fileSources[fileHash]?.data || [];
-    $: groupedBySource = groupByDownloadSource(
-        sources,
-        $invalidFileSources,
-        $unavailableSources,
-    );
-    $: groupedByProfile = groupByProfile(sources);
+    function copyToClipboard(text: string) {
+        navigator.clipboard.writeText(text);
+    }
 
-    $: totalThumbsUp = sources.length;
-
-    $: timelineEvents = (() => {
-        const events: TimelineEvent[] = [];
-
-        // Add sources
-        for (const source of sources) {
-            events.push({
-                timestamp: source.timestamp,
-                type: "FILE_SOURCE",
-                label: `New download source added`,
-                color: "#22c55e", // green-500
-                authorTokenId: source.ownerTokenId,
-                data: { sourceUrl: source.sourceUrl },
-            });
-        }
-
-        // Add invalidations
-        for (const boxId in $invalidFileSources) {
-            const invs = $invalidFileSources[boxId].data;
-            const targetSource = sources.find((s) => s.id === boxId);
-            if (targetSource) {
-                for (const inv of invs) {
-                    events.push({
-                        timestamp: inv.timestamp,
-                        type: "INVALID_FILE_SOURCE",
-                        label: `Source marked as invalid`,
-                        color: "#ef4444", // red-500
-                        authorTokenId: inv.authorTokenId,
-                        data: { sourceUrl: targetSource.sourceUrl },
-                    });
-                }
-            }
-        }
-
-        // Add unavailabilities
-        for (const url in $unavailableSources) {
-            const unavs = $unavailableSources[url].data;
-            if (sources.some((s) => s.sourceUrl === url)) {
-                for (const unav of unavs) {
-                    events.push({
-                        timestamp: unav.timestamp,
-                        type: "UNAVAILABLE_SOURCE",
-                        label: `Source marked as unavailable`,
-                        color: "#f59e0b", // amber-500
-                        authorTokenId: unav.authorTokenId,
-                        data: { sourceUrl: url },
-                    });
-                }
-            }
-        }
-
-        return events;
-    })();
-
-    async function handleAddSource() {
-        if (!newSourceUrl.trim() || !profile) return;
-
-        isAddingSource = true;
-        addError = null;
+    async function handleConfirm() {
+        if (!profile) return;
+        isVoting = true;
+        voteError = null;
         try {
-            const tx = await addFileSource(
-                fileHash.trim(),
-                newSourceUrl.trim(),
+            await confirmSource(
+                source.fileHash,
+                source.sourceUrl,
+                profile,
+                confirmations, // Pass current confirmations as "currentSources" for check?
+                // Wait, confirmSource expects "currentSources: FileSource[]".
+                // confirmations IS FileSource[]. Correct.
+                explorerUri,
             );
-            console.log("Source added, tx:", tx);
-            newSourceUrl = "";
-            // Ideally we should refresh or optimistic update here, but searchByHash might handle it via polling or store update
+            console.log("Source confirmed");
         } catch (err: any) {
-            console.error("Error adding source:", err);
-            addError = err?.message || "Failed to add source";
+            console.error("Error confirming:", err);
+            voteError = err?.message || "Failed to confirm";
         } finally {
-            isAddingSource = false;
+            isVoting = false;
         }
+    }
+
+    async function handleInvalid() {
+        if (!profile) return;
+        isVoting = true;
+        voteError = null;
+        try {
+            await markInvalidSource(source.id, profile, explorerUri);
+            console.log("Source marked as invalid");
+        } catch (err: any) {
+            console.error("Error marking invalid:", err);
+            voteError = err?.message || "Failed to mark invalid";
+        } finally {
+            isVoting = false;
+        }
+    }
+
+    async function handleUnavailable() {
+        if (!profile) return;
+        isVoting = true;
+        voteError = null;
+        try {
+            await markUnavailableSource(source.sourceUrl, profile, explorerUri);
+            console.log("Source marked as unavailable");
+        } catch (err: any) {
+            console.error("Error marking unavailable:", err);
+            voteError = err?.message || "Failed to mark unavailable";
+        } finally {
+            isVoting = false;
+        }
+    }
+
+    async function handleUpdateSource() {
+        if (!profile || !newSourceUrl.trim()) return;
+
+        isUpdatingSource = true;
+        voteError = null;
+        try {
+            await updateFileSource(
+                source.id,
+                source.fileHash,
+                newSourceUrl.trim(),
+                profile,
+                explorerUri,
+            );
+            console.log("Source updated");
+            isEditingSource = false;
+        } catch (err: any) {
+            console.error("Error updating source:", err);
+            voteError = err?.message || "Failed to update source";
+        } finally {
+            isUpdatingSource = false;
+        }
+    }
+
+    function getScoreColor(score: number): string {
+        if (score > 0) return "text-green-500";
+        if (score < 0) return "text-red-500";
+        return "text-muted-foreground";
+    }
+
+    function getStatusBadge(): { text: string; color: string } {
+        if (invalidationScore > confirmationScore) {
+            return { text: "Invalid", color: "bg-red-500/20 text-red-400" };
+        }
+        if (unavailabilityScore > 0) {
+            return {
+                text: "Unavailable",
+                color: "bg-orange-500/20 text-orange-400",
+            };
+        }
+        if (confirmationScore > 0) {
+            return {
+                text: "Confirmed",
+                color: "bg-green-500/20 text-green-400",
+            };
+        }
+        return { text: "Unverified", color: "bg-gray-500/20 text-gray-400" };
+    }
+
+    $: statusBadge = getStatusBadge();
+
+    function navigateToProfile(tokenId: string) {
+        const url = new URL($page.url);
+        url.searchParams.set("profile", tokenId);
+        url.searchParams.set("tab", "profile");
+        url.searchParams.delete("search");
+        goto(url.toString(), { keepFocus: true, noScroll: true });
+    }
+
+    function navigateToSearch(fileHash: string) {
+        const url = new URL($page.url);
+        url.searchParams.set("search", fileHash);
+        url.searchParams.set("tab", "search");
+        url.searchParams.delete("profile");
+        goto(url.toString(), { keepFocus: true, noScroll: true });
     }
 </script>
 
-<div class={className}>
-    <div class="mb-8 border-b pb-4">
-        <Label
-            class="text-[10px] text-muted-foreground uppercase tracking-widest font-bold"
-            >File Hash</Label
+<div
+    class="bg-card p-4 rounded-lg border hover:border-primary/50 transition-colors"
+>
+    <div class="flex items-start gap-4">
+        <!-- Owner Avatar -->
+        <button
+            class="flex-shrink-0 hover:opacity-80 transition-opacity"
+            on:click={() => navigateToProfile(source.ownerTokenId)}
+            title="View profile sources"
         >
-        <div class="font-mono text-xs break-all mt-1 select-all opacity-70">
-            {fileHash}
-        </div>
-    </div>
+            {@html getAvatarSvg(source.ownerTokenId, 48)}
+        </button>
 
-    {#if $isLoading}
-        <div class="text-center py-12">
-            <div
-                class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary mb-4"
-            ></div>
-            <p class="text-muted-foreground">Loading sources...</p>
-        </div>
-    {:else if sources.length === 0}
-        <div class="py-8">
-            <div class="text-center mb-8">
-                <p class="text-muted-foreground">
-                    No sources found for this hash
-                </p>
+        <!-- Main Content -->
+        <div class="flex-1 min-w-0">
+            <!-- Header: Owner + Status -->
+            <div class="flex items-center gap-2 mb-2 flex-wrap">
+                <button
+                    on:click={() => navigateToProfile(source.ownerTokenId)}
+                    class="text-sm font-medium text-primary hover:underline"
+                    title="View profile sources"
+                >
+                    @{source.ownerTokenId.slice(0, 8)}...
+                </button>
+                <a
+                    href={`${webExplorerUriTkn}${source.ownerTokenId}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    class="text-muted-foreground hover:text-primary"
+                    title="View on Explorer"
+                >
+                    <ExternalLink class="w-3 h-3" />
+                </a>
+                <span class="text-xs px-2 py-0.5 rounded {statusBadge.color}">
+                    {statusBadge.text}
+                </span>
+                <span class="text-xs text-muted-foreground">
+                    {new Date(source.timestamp).toLocaleString()}
+                </span>
             </div>
 
-            <div class="max-w-md mx-auto text-left py-6">
-                <h4 class="font-semibold mb-6 text-lg">Add First Source</h4>
-
-                <div
-                    class="text-xs text-amber-500/80 mb-6 flex gap-2 items-start"
-                >
-                    <AlertTriangle class="w-4 h-4 flex-shrink-0 mt-0.5" />
-                    <p>
-                        Verify URLs before adding. They will be immutable on the
-                        blockchain.
-                    </p>
+            <!-- File Hash -->
+            <div class="mb-3">
+                <div class="text-xs text-muted-foreground mb-1">File Hash:</div>
+                <div class="flex items-center gap-2">
+                    <button
+                        on:click={() => navigateToSearch(source.fileHash)}
+                        class="text-sm bg-secondary px-2 py-1 rounded font-mono break-all hover:bg-secondary/80 text-left"
+                        title="Search for this hash"
+                    >
+                        {source.fileHash}
+                    </button>
+                    <button
+                        on:click={() => copyToClipboard(source.fileHash)}
+                        class="p-1 hover:bg-secondary rounded"
+                        title="Copy hash"
+                    >
+                        <Copy class="w-3 h-3" />
+                    </button>
                 </div>
+            </div>
 
-                {#if addError}
-                    <div
-                        class="bg-red-500/10 border border-red-500/20 p-3 rounded-lg mb-4"
-                    >
-                        <p class="text-xs text-red-200">{addError}</p>
-                    </div>
-                {/if}
-
-                <div class="space-y-4">
-                    <div>
-                        <Label for="new-source-url">Source URL</Label>
-                        <Input
-                            id="new-source-url"
-                            bind:value={newSourceUrl}
-                            placeholder="https://example.com/file.zip"
-                            class="font-mono text-sm bg-background"
-                            disabled={!profile || isAddingSource}
-                        />
-                    </div>
-
-                    <Button
-                        on:click={handleAddSource}
-                        disabled={!profile ||
-                            !newSourceUrl.trim() ||
-                            isAddingSource}
-                        class="w-full"
-                    >
-                        {isAddingSource ? "Adding Source..." : "Add Source"}
-                    </Button>
-
-                    {#if !profile}
-                        <p class="text-xs text-center text-muted-foreground">
-                            You must have a profile to add sources.
-                        </p>
+            <!-- Source URL -->
+            <div class="mb-3">
+                <div class="text-xs text-muted-foreground mb-1">
+                    Download Source:
+                </div>
+                <div class="flex items-center gap-2">
+                    {#if isEditingSource}
+                        <div class="flex-1 flex gap-2">
+                            <Input
+                                bind:value={newSourceUrl}
+                                placeholder="New source URL"
+                                class="h-8 text-sm font-mono"
+                                disabled={isUpdatingSource}
+                            />
+                            <Button
+                                size="sm"
+                                variant="ghost"
+                                class="h-8 w-8 p-0 text-green-500"
+                                on:click={handleUpdateSource}
+                                disabled={isUpdatingSource ||
+                                    !newSourceUrl.trim() ||
+                                    newSourceUrl === source.sourceUrl}
+                            >
+                                <Check class="w-4 h-4" />
+                            </Button>
+                            <Button
+                                size="sm"
+                                variant="ghost"
+                                class="h-8 w-8 p-0 text-red-500"
+                                on:click={() => {
+                                    isEditingSource = false;
+                                    newSourceUrl = source.sourceUrl;
+                                }}
+                                disabled={isUpdatingSource}
+                            >
+                                <X class="w-4 h-4" />
+                            </Button>
+                        </div>
+                    {:else}
+                        <a
+                            href={source.sourceUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            class="text-sm text-blue-400 hover:underline break-all font-mono flex items-center gap-1"
+                        >
+                            {source.sourceUrl}
+                            <ExternalLink class="w-3 h-3 flex-shrink-0" />
+                        </a>
+                        {#if source.ownerTokenId === userProfileTokenId}
+                            <button
+                                on:click={() => (isEditingSource = true)}
+                                class="p-1 hover:bg-secondary rounded text-muted-foreground hover:text-foreground"
+                                title="Edit source URL"
+                            >
+                                <Pen class="w-3 h-3" />
+                            </button>
+                        {/if}
                     {/if}
                 </div>
             </div>
-        </div>
-    {:else}
-        <div
-            class="mb-6 flex flex-col md:flex-row md:items-center justify-between gap-4"
-        >
-            <div>
-                <div class="flex items-center gap-2 mt-1">
+
+            <!-- Voting Section -->
+            <div class="flex items-center gap-4 flex-wrap">
+                <!-- Vote Buttons -->
+                {#if userProfileTokenId}
+                    <div class="flex gap-2 items-center">
+                        <Button
+                            variant={userHasConfirmed ? "default" : "outline"}
+                            size="sm"
+                            on:click={handleConfirm}
+                            disabled={isVoting || userHasConfirmed}
+                            class="text-xs h-8"
+                            title="Confirm this source provides the file"
+                        >
+                            <ThumbsUp class="w-3 h-3 mr-1" />
+                            {userHasConfirmed ? "Confirmed" : "Confirm"}
+                        </Button>
+                        <Button
+                            variant={userHasInvalidated ? "default" : "outline"}
+                            size="sm"
+                            on:click={handleInvalid}
+                            disabled={isVoting || userHasInvalidated}
+                            class="text-xs h-8"
+                            title="Mark this source as fake or incorrect"
+                        >
+                            <ThumbsDown class="w-3 h-3 mr-1" />
+                            {userHasInvalidated ? "Invalidated" : "Invalid"}
+                        </Button>
+                        <Button
+                            variant={userHasMarkedUnavailable
+                                ? "default"
+                                : "outline"}
+                            size="sm"
+                            on:click={handleUnavailable}
+                            disabled={isVoting || userHasMarkedUnavailable}
+                            class="text-xs h-8"
+                            title="Mark this URL as broken or unavailable"
+                        >
+                            <CloudOff class="w-3 h-3 mr-1" />
+                            {userHasMarkedUnavailable
+                                ? "Unavailable"
+                                : "Unavailable"}
+                        </Button>
+                    </div>
+                {/if}
+
+                <!-- Score Display -->
+                <div class="flex items-center gap-3 text-xs">
                     <div
-                        class="flex items-center gap-1.5 text-green-500 text-xs font-semibold uppercase tracking-wider"
+                        class="flex items-center gap-1"
+                        title="File Confirmations (Global)"
                     >
-                        <ThumbsUp class="w-3.5 h-3.5" />
-                        <span>{totalThumbsUp} Total Sources</span>
+                        <ThumbsUp class="w-3 h-3 text-green-500" />
+                        <span>{confirmations.length || 1}</span>
+                    </div>
+                    <div
+                        class="flex items-center gap-1"
+                        title="Source Invalidations (Thumbs Down)"
+                    >
+                        <ThumbsDown class="w-3 h-3 text-red-500" />
+                        <span>{invalidations.length}</span>
+                    </div>
+                    <div
+                        class="flex items-center gap-1"
+                        title="Source Offline (Unavailable)"
+                    >
+                        <CloudOff class="w-3 h-3 text-orange-500" />
+                        <span>{unavailabilities.length}</span>
                     </div>
                 </div>
+
+                <!-- Transaction Link -->
+                <a
+                    href={`${webExplorerUriTx}${source.transactionId}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    class="text-xs text-muted-foreground hover:text-foreground ml-auto"
+                >
+                    #{source.id.slice(0, 8)}...
+                </a>
             </div>
 
-            <div class="flex border-b self-start">
-                <button
-                    class="flex items-center gap-2 px-4 py-2 text-sm font-medium transition-all border-b-2 -mb-[2px] {viewMode ===
-                    'source'
-                        ? 'border-primary text-primary'
-                        : 'border-transparent text-muted-foreground hover:text-foreground'}"
-                    on:click={() => (viewMode = "source")}
-                >
-                    <LayoutGrid class="w-4 h-4" />
-                    By Source
-                </button>
-                <button
-                    class="flex items-center gap-2 px-4 py-2 text-sm font-medium transition-all border-b-2 -mb-[2px] {viewMode ===
-                    'profile'
-                        ? 'border-primary text-primary'
-                        : 'border-transparent text-muted-foreground hover:text-foreground'}"
-                    on:click={() => (viewMode = "profile")}
-                >
-                    <Users class="w-4 h-4" />
-                    By Profile
-                </button>
-                <button
-                    class="flex items-center gap-2 px-4 py-2 text-sm font-medium transition-all border-b-2 -mb-[2px] {viewMode ===
-                    'timeline'
-                        ? 'border-primary text-primary'
-                        : 'border-transparent text-muted-foreground hover:text-foreground'}"
-                    on:click={() => (viewMode = "timeline")}
-                >
-                    <Search class="w-4 h-4" />
-                    Timeline
-                </button>
-            </div>
-        </div>
-
-        <div class="space-y-4">
-            {#if viewMode === "source"}
-                {#each groupedBySource as group (group.sourceUrl)}
-                    <DownloadSourceCard
-                        {group}
-                        {fileHash}
-                        totalFileSources={totalThumbsUp}
-                        userProfileTokenId={profile?.token_id ?? null}
-                    />
-                {/each}
-            {:else if viewMode === "profile"}
-                {#each groupedByProfile as group (group.profileTokenId)}
-                    <ProfileSourceGroup {group} />
-                {/each}
-            {:else if viewMode === "timeline"}
-                <Timeline
-                    events={timelineEvents}
-                    title="File Source Opinion History"
-                />
+            <!-- Vote Error -->
+            {#if voteError}
+                <div class="mt-2 text-xs text-red-400">
+                    {voteError}
+                </div>
             {/if}
         </div>
-    {/if}
+    </div>
 </div>

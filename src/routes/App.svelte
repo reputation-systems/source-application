@@ -10,28 +10,43 @@
 		balance,
 		network,
 		reputation_proof,
+		fileSources,
+		invalidFileSources,
+		unavailableSources,
+		profileOpinions,
+		profileOpinionsGiven,
+		profileInvalidations,
+		profileUnavailabilities,
+		isLoading,
+		currentSearchHash,
+		error,
 	} from "$lib/ergo/store";
-	import { explorer_uri, web_explorer_uri_tx } from "$lib/ergo/envs";
-	import { User, Settings } from "lucide-svelte";
+	import {
+		explorer_uri,
+		web_explorer_uri_tx,
+		web_explorer_uri_addr,
+		web_explorer_uri_tkn,
+	} from "$lib/ergo/envs";
+	import { User, Settings, Search, Plus, UserPlus } from "lucide-svelte";
 	import { get } from "svelte/store";
 	import SettingsModal from "$lib/components/SettingsModal.svelte";
 	import ProfileModal from "$lib/components/ProfileModal.svelte";
 	import { fetchProfile } from "$lib/ergo/profileFetch";
-	import { createProfileBox } from "$lib/ergo/sourceStore";
+	import {
+		createProfileBox,
+		searchByHash,
+		loadProfileData,
+	} from "$lib/ergo/sourceStore";
 	import ProfileSources from "$lib/components/ProfileSources.svelte";
 	import SearchByHash from "$lib/components/SearchByHash.svelte";
-	import AddSource from "$lib/components/AddSource.svelte";
-	import { Search, Plus, UserPlus, LayoutGrid } from "lucide-svelte";
 	import { Button } from "$lib/components/ui/button/index.js";
+	import FileSourceCreation from "$lib/components/FileSourceCreation.svelte";
 
 	export let connect_executed = false;
 
 	let current_height = 0;
-
 	let profile_creation_tx = "";
-
 	let balanceUpdateInterval: any;
-
 	let showProfileModal = false;
 	let showSettingsModal = false;
 
@@ -141,8 +156,9 @@
 
 	async function loadUserProfile() {
 		try {
-			await fetchProfile(ergo);
-			console.log("Profile loaded:", $reputation_proof);
+			const proof = await fetchProfile(ergo, get(explorer_uri));
+			reputation_proof.set(proof);
+			console.log("Profile loaded:", proof);
 		} catch (err) {
 			console.error("Error loading profile:", err);
 		}
@@ -193,12 +209,135 @@
 		isCreatingProfile = true;
 		addError = null;
 		try {
-			await createProfileBox();
+			await createProfileBox(get(explorer_uri));
 		} catch (err: any) {
 			console.error("Error creating profile:", err);
 			addError = err?.message || "Failed to create profile";
 		} finally {
 			isCreatingProfile = false;
+		}
+	}
+
+	function handleSettingsSave(settings: {
+		explorerUri: string;
+		webTx: string;
+		webAddr: string;
+		webTkn: string;
+	}) {
+		explorer_uri.set(settings.explorerUri);
+		web_explorer_uri_tx.set(settings.webTx);
+		web_explorer_uri_addr.set(settings.webAddr);
+		web_explorer_uri_tkn.set(settings.webTkn);
+	}
+
+	// --- Centralized State Actions ---
+
+	async function handleSearch(hash: string) {
+		if (!hash) return;
+		isLoading.set(true);
+		currentSearchHash.set(hash);
+		try {
+			const result = await searchByHash(hash, get(explorer_uri));
+
+			fileSources.update((s) => ({
+				...s,
+				[hash]: { data: result.sources, timestamp: Date.now() },
+			}));
+
+			invalidFileSources.update((s) => {
+				const newInvs = { ...s };
+				for (const [id, invs] of Object.entries(result.invalidations)) {
+					newInvs[id] = { data: invs, timestamp: Date.now() };
+				}
+				return newInvs;
+			});
+
+			unavailableSources.update((s) => {
+				const newUnavs = { ...s };
+				for (const [url, unavs] of Object.entries(
+					result.unavailabilities,
+				)) {
+					newUnavs[url] = { data: unavs, timestamp: Date.now() };
+				}
+				return newUnavs;
+			});
+		} catch (e: any) {
+			console.error("Search error:", e);
+			error.set(e.message);
+		} finally {
+			isLoading.set(false);
+		}
+	}
+
+	async function handleLoadProfile(tokenId: string) {
+		if (!tokenId) return;
+		isLoading.set(true);
+		try {
+			const data = await loadProfileData(tokenId, get(explorer_uri));
+
+			fileSources.update((s) => ({
+				...s,
+				[tokenId]: { data: data.sources, timestamp: Date.now() },
+			}));
+
+			profileInvalidations.update((s) => ({
+				...s,
+				[tokenId]: { data: data.invalidations, timestamp: Date.now() },
+			}));
+			profileUnavailabilities.update((s) => ({
+				...s,
+				[tokenId]: {
+					data: data.unavailabilities,
+					timestamp: Date.now(),
+				},
+			}));
+			profileOpinions.update((s) => ({
+				...s,
+				[tokenId]: { data: data.opinions, timestamp: Date.now() },
+			}));
+			profileOpinionsGiven.update((s) => ({
+				...s,
+				[tokenId]: { data: data.opinionsGiven, timestamp: Date.now() },
+			}));
+		} catch (e: any) {
+			console.error("Load profile error:", e);
+			error.set(e.message);
+		} finally {
+			isLoading.set(false);
+		}
+	}
+
+	async function handleLoadFile(hash: string) {
+		if (!hash) return;
+		if (get(fileSources)[hash]) return;
+
+		try {
+			const result = await searchByHash(hash, get(explorer_uri));
+
+			fileSources.update((s) => ({
+				...s,
+				[hash]: { data: result.sources, timestamp: Date.now() },
+			}));
+
+			invalidFileSources.update((s) => {
+				const newInvs = { ...s };
+				for (const [id, invs] of Object.entries(result.invalidations)) {
+					newInvs[id] = { data: invs, timestamp: Date.now() };
+				}
+				return newInvs;
+			});
+
+			unavailableSources.update((s) => {
+				const newUnavs = { ...s };
+				for (const [url, unavs] of Object.entries(
+					result.unavailabilities,
+				)) {
+					newUnavs[url] = { data: unavs, timestamp: Date.now() };
+				}
+				return newUnavs;
+			});
+		} catch (e) {
+			console.error("Load file error:", e);
 		}
 	}
 
@@ -255,8 +394,23 @@
 	</div>
 </div>
 
-<SettingsModal bind:show={showSettingsModal} />
-<ProfileModal bind:show={showProfileModal} bind:profile_creation_tx />
+<SettingsModal
+	bind:show={showSettingsModal}
+	explorerUri={$explorer_uri}
+	webTx={$web_explorer_uri_tx}
+	webAddr={$web_explorer_uri_addr}
+	webTkn={$web_explorer_uri_tkn}
+	onSave={handleSettingsSave}
+/>
+
+<ProfileModal
+	bind:show={showProfileModal}
+	bind:profile_creation_tx
+	address={$address}
+	profile={$reputation_proof}
+	webExplorerUriTx={$web_explorer_uri_tx}
+	explorerUri={$explorer_uri}
+/>
 
 <main class="container mx-auto px-4 py-8 pb-20">
 	<div class="max-w-6xl mx-auto">
@@ -297,11 +451,42 @@
 		{/if}
 
 		{#if activeTab === "profile"}
-			<ProfileSources connected={$connected} {hasProfile} />
+			<ProfileSources
+				connected={$connected}
+				{hasProfile}
+				reputationProof={$reputation_proof}
+				explorerUri={$explorer_uri}
+				webExplorerUriTkn={$web_explorer_uri_tkn}
+				webExplorerUriTx={$web_explorer_uri_tx}
+				fileSources={$fileSources}
+				invalidFileSources={$invalidFileSources}
+				unavailableSources={$unavailableSources}
+				profileOpinions={$profileOpinions}
+				profileOpinionsGiven={$profileOpinionsGiven}
+				profileInvalidations={$profileInvalidations}
+				profileUnavailabilities={$profileUnavailabilities}
+				isLoading={$isLoading}
+				onLoadProfile={handleLoadProfile}
+				onLoadFile={handleLoadFile}
+			/>
 		{:else if activeTab === "search"}
-			<SearchByHash {hasProfile} />
+			<SearchByHash
+				{hasProfile}
+				reputationProof={$reputation_proof}
+				explorerUri={$explorer_uri}
+				webExplorerUriTkn={$web_explorer_uri_tkn}
+				fileSources={$fileSources}
+				invalidFileSources={$invalidFileSources}
+				unavailableSources={$unavailableSources}
+				isLoading={$isLoading}
+				currentSearchHash={$currentSearchHash}
+				onSearch={handleSearch}
+			/>
 		{:else if activeTab === "add"}
-			<AddSource {hasProfile} />
+			<FileSourceCreation
+				profile={$reputation_proof}
+				explorerUri={$explorer_uri}
+			/>
 		{/if}
 	</div>
 </main>

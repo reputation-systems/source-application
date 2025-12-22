@@ -1,20 +1,16 @@
 <script lang="ts">
-    import { searchByHash } from "$lib/ergo/sourceStore";
     import { page } from "$app/stores";
     import { goto } from "$app/navigation";
-    import {
-        fileSources,
-        isLoading,
-        currentSearchHash,
-        invalidFileSources,
-        unavailableSources,
-        reputation_proof,
-    } from "$lib/ergo/store";
     import {
         groupByDownloadSource,
         groupByProfile,
         type TimelineEvent,
+        type FileSource,
+        type InvalidFileSource,
+        type UnavailableSource,
     } from "$lib/ergo/sourceObject";
+    import { type CachedData } from "$lib/ergo/store";
+    import { type ReputationProof } from "$lib/ergo/object";
     import { Button } from "$lib/components/ui/button/index.js";
     import { Input } from "$lib/components/ui/input/index.js";
     import { Label } from "$lib/components/ui/label/index.js";
@@ -24,6 +20,19 @@
     import Timeline from "./Timeline.svelte";
 
     export let hasProfile = false;
+    export let reputationProof: ReputationProof | null = null;
+    export let explorerUri: string;
+    export let webExplorerUriTkn: string;
+
+    // Data Props
+    export let fileSources: CachedData<FileSource[]> = {};
+    export let invalidFileSources: CachedData<InvalidFileSource[]> = {};
+    export let unavailableSources: CachedData<UnavailableSource[]> = {};
+    export let isLoading: boolean = false;
+    export let currentSearchHash: string = "";
+
+    // Callbacks
+    export let onSearch: (hash: string) => void;
 
     let searchHash = "";
     let viewMode: "source" | "profile" | "timeline" = "source";
@@ -32,7 +41,7 @@
         const searchParam = $page.url.searchParams.get("search");
         if (searchParam && searchParam !== searchHash) {
             searchHash = searchParam;
-            searchByHash(searchHash);
+            onSearch(searchHash);
         }
     }
 
@@ -45,11 +54,11 @@
         goto(url.toString(), { keepFocus: true, noScroll: true });
     }
 
-    $: sources = $fileSources[$currentSearchHash]?.data || [];
+    $: sources = fileSources[currentSearchHash]?.data || [];
     $: groupedBySource = groupByDownloadSource(
         sources,
-        $invalidFileSources,
-        $unavailableSources,
+        invalidFileSources,
+        unavailableSources,
     );
     $: groupedByProfile = groupByProfile(sources);
 
@@ -71,8 +80,8 @@
         }
 
         // Add invalidations
-        for (const boxId in $invalidFileSources) {
-            const invs = $invalidFileSources[boxId].data;
+        for (const boxId in invalidFileSources) {
+            const invs = invalidFileSources[boxId]?.data || [];
             const targetSource = sources.find((s) => s.id === boxId);
             if (targetSource) {
                 for (const inv of invs) {
@@ -89,8 +98,8 @@
         }
 
         // Add unavailabilities
-        for (const url in $unavailableSources) {
-            const unavs = $unavailableSources[url].data;
+        for (const url in unavailableSources) {
+            const unavs = unavailableSources[url]?.data || [];
             if (sources.some((s) => s.sourceUrl === url)) {
                 for (const unav of unavs) {
                     events.push({
@@ -131,7 +140,7 @@
     </div>
 </div>
 
-{#if $currentSearchHash}
+{#if currentSearchHash}
     <div
         class="mb-6 flex flex-col md:flex-row md:items-center justify-between gap-4"
     >
@@ -139,7 +148,7 @@
             <h3 class="text-lg font-semibold flex items-center gap-2">
                 Results for: <span
                     class="font-mono text-sm text-muted-foreground"
-                    >{$currentSearchHash.slice(0, 16)}...</span
+                    >{currentSearchHash.slice(0, 16)}...</span
                 >
             </h3>
             <div class="flex items-center gap-2 mt-1">
@@ -189,14 +198,14 @@
     </div>
 {/if}
 
-{#if $isLoading}
+{#if isLoading}
     <div class="text-center py-12">
         <div
             class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary mb-4"
         ></div>
         <p class="text-muted-foreground">Searching sources...</p>
     </div>
-{:else if $currentSearchHash && sources.length === 0}
+{:else if currentSearchHash && sources.length === 0}
     <div class="text-center py-12 bg-card rounded-lg border border-dashed">
         <p class="text-muted-foreground">No sources found for this hash</p>
     </div>
@@ -206,21 +215,29 @@
             {#each groupedBySource as group (group.sourceUrl)}
                 <DownloadSourceCard
                     {group}
-                    fileHash={$currentSearchHash}
-                    totalFileSources={totalThumbsUp}
+                    fileHash={currentSearchHash}
                     userProfileTokenId={hasProfile
-                        ? $reputation_proof?.token_id
+                        ? (reputationProof?.token_id ?? null)
                         : null}
+                    {reputationProof}
+                    {explorerUri}
+                    currentSources={sources}
                 />
             {/each}
         {:else if viewMode === "profile"}
             {#each groupedByProfile as group (group.profileTokenId)}
-                <ProfileSourceGroup {group} />
+                <ProfileSourceGroup
+                    {group}
+                    {invalidFileSources}
+                    {unavailableSources}
+                    {webExplorerUriTkn}
+                />
             {/each}
         {:else if viewMode === "timeline"}
             <Timeline
                 events={timelineEvents}
                 title="File Source Opinion History"
+                {webExplorerUriTkn}
             />
         {/if}
     </div>

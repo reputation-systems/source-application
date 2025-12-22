@@ -2,25 +2,28 @@
     import {
         type ProfileSourceGroup,
         type FileSource,
+        type InvalidFileSource,
+        type UnavailableSource,
     } from "$lib/ergo/sourceObject";
-    import { invalidFileSources, unavailableSources } from "$lib/ergo/store";
+    import { type CachedData } from "$lib/ergo/store";
     import * as jdenticon from "jdenticon";
     import { ExternalLink, ThumbsDown, CloudOff } from "lucide-svelte";
-    import { web_explorer_uri_tkn } from "$lib/ergo/envs";
-    import { get } from "svelte/store";
 
     export let group: ProfileSourceGroup;
+    export let invalidFileSources: CachedData<InvalidFileSource[]> = {};
+    export let unavailableSources: CachedData<UnavailableSource[]> = {};
+    export let webExplorerUriTkn: string;
 
     function getAvatarSvg(tokenId: string, size = 48): string {
         return jdenticon.toSvg(tokenId, size);
     }
 
     function getInvalidations(sourceId: string) {
-        return $invalidFileSources[sourceId]?.data || [];
+        return invalidFileSources[sourceId]?.data || [];
     }
 
     function getUnavailabilities(sourceUrl: string) {
-        return $unavailableSources[sourceUrl]?.data || [];
+        return unavailableSources[sourceUrl]?.data || [];
     }
 </script>
 
@@ -38,7 +41,7 @@
                     @{group.profileTokenId.slice(0, 8)}...
                 </span>
                 <a
-                    href={`${get(web_explorer_uri_tkn)}${group.profileTokenId}`}
+                    href={`${webExplorerUriTkn}${group.profileTokenId}`}
                     target="_blank"
                     rel="noopener noreferrer"
                     class="text-muted-foreground hover:text-primary"

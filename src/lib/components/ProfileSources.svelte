@@ -2,27 +2,41 @@
     import { onMount } from "svelte";
     import { page } from "$app/stores";
     import { goto } from "$app/navigation";
-    import { loadSourcesByProfile } from "$lib/ergo/sourceStore";
-    import {
-        fileSources,
-        isLoading,
-        invalidFileSources,
-        unavailableSources,
-        reputation_proof,
-        profileOpinions,
-        profileInvalidations,
-        profileUnavailabilities,
-        profileOpinionsGiven,
-    } from "$lib/ergo/store";
-    import FileSourceCard from "./FileSourceCard.svelte";
     import { Input } from "$lib/components/ui/input/index.js";
     import { Button } from "$lib/components/ui/button/index.js";
     import { Search, X, User, LayoutGrid } from "lucide-svelte";
     import Timeline from "./Timeline.svelte";
-    import type { TimelineEvent } from "$lib/ergo/sourceObject";
+    import type {
+        TimelineEvent,
+        FileSource,
+        InvalidFileSource,
+        UnavailableSource,
+        ProfileOpinion,
+    } from "$lib/ergo/sourceObject";
+    import type { ReputationProof } from "$lib/ergo/object";
+    import type { CachedData } from "$lib/ergo/store";
+    import { FileSourceCard } from "$lib";
 
     export let connected = false;
     export let hasProfile = false;
+    export let reputationProof: ReputationProof | null = null;
+    export let explorerUri: string;
+    export let webExplorerUriTkn: string;
+    export let webExplorerUriTx: string;
+
+    // Data Props (CachedData maps)
+    export let fileSources: CachedData<FileSource[]> = {};
+    export let invalidFileSources: CachedData<InvalidFileSource[]> = {};
+    export let unavailableSources: CachedData<UnavailableSource[]> = {};
+    export let profileOpinions: CachedData<ProfileOpinion[]> = {};
+    export let profileOpinionsGiven: CachedData<ProfileOpinion[]> = {};
+    export let profileInvalidations: CachedData<InvalidFileSource[]> = {};
+    export let profileUnavailabilities: CachedData<UnavailableSource[]> = {};
+    export let isLoading: boolean = false;
+
+    // Callbacks
+    export let onLoadProfile: (tokenId: string) => void;
+    export let onLoadFile: (hash: string) => void;
 
     let filterTokenId = "";
     let searchInput = "";
@@ -36,12 +50,12 @@
         }
     }
 
-    $: currentProfileTokenId = $reputation_proof?.token_id;
+    $: currentProfileTokenId = reputationProof?.token_id;
     $: activeProfileTokenId = filterTokenId || currentProfileTokenId;
 
     async function loadSources() {
         if (connected && hasProfile && activeProfileTokenId) {
-            await loadSourcesByProfile(activeProfileTokenId);
+            onLoadProfile(activeProfileTokenId);
         }
     }
 
@@ -50,8 +64,28 @@
     });
 
     $: if (connected && hasProfile && activeProfileTokenId) {
-        if (!$fileSources[activeProfileTokenId]) {
+        if (!fileSources[activeProfileTokenId]) {
             loadSources();
+        }
+    }
+
+    // Load file sources for each file in the profile's list
+    $: if (activeProfileTokenId && fileSources[activeProfileTokenId]?.data) {
+        const sources = fileSources[activeProfileTokenId].data;
+        for (const source of sources) {
+            // If we don't have the full list of sources for this hash, load it
+            // This is needed because FileSourceCard displays *all* sources for the hash, not just the user's
+            if (!fileSources[source.fileHash]) {
+                // Avoid infinite loop or excessive calls?
+                // onLoadFile should handle deduplication or check cache
+                // But this is a reactive statement. It runs whenever fileSources changes.
+                // If onLoadFile updates fileSources, this runs again.
+                // We need to be careful.
+                // Ideally onLoadFile is called once.
+                // We can check if it's loading? No, isLoading is global.
+                // We rely on the parent (App.svelte) to check cache before fetching.
+                onLoadFile(source.fileHash);
+            }
         }
     }
 
@@ -78,15 +112,15 @@
         const events: TimelineEvent[] = [];
         if (!activeProfileTokenId) return events;
 
-        const sources = $fileSources[activeProfileTokenId]?.data || [];
+        const sources = fileSources[activeProfileTokenId]?.data || [];
         const receivedOpinions =
-            $profileOpinions[activeProfileTokenId]?.data || [];
+            profileOpinions[activeProfileTokenId]?.data || [];
         const givenOpinions =
-            $profileOpinionsGiven[activeProfileTokenId]?.data || [];
+            profileOpinionsGiven[activeProfileTokenId]?.data || [];
         const invalidations =
-            $profileInvalidations[activeProfileTokenId]?.data || [];
+            profileInvalidations[activeProfileTokenId]?.data || [];
         const unavailabilities =
-            $profileUnavailabilities[activeProfileTokenId]?.data || [];
+            profileUnavailabilities[activeProfileTokenId]?.data || [];
 
         // Add sources created by this profile
         for (const source of sources) {
@@ -237,7 +271,7 @@
     {/if}
 </div>
 
-{#if $isLoading}
+{#if isLoading}
     <div class="text-center py-12">
         <div
             class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary mb-4"
@@ -246,7 +280,7 @@
     </div>
 {:else}
     {@const sources = activeProfileTokenId
-        ? $fileSources[activeProfileTokenId]?.data || []
+        ? fileSources[activeProfileTokenId]?.data || []
         : []}
 
     {#if viewMode === "sources"}
@@ -270,14 +304,12 @@
                 {#each sources as source (source.id)}
                     <FileSourceCard
                         {source}
-                        confirmations={[]}
-                        invalidations={$invalidFileSources[source.id]?.data ||
-                            []}
-                        unavailabilities={$unavailableSources[source.sourceUrl]
-                            ?.data || []}
-                        userProfileTokenId={hasProfile
-                            ? $reputation_proof?.token_id
-                            : null}
+                        profile={reputationProof}
+                        invalidations={invalidFileSources.data}
+                        unavailabilities={unavailableSources.data}
+                        {explorerUri}
+                        {webExplorerUriTx}
+                        {webExplorerUriTkn}
                     />
                 {/each}
             </div>
@@ -287,6 +319,7 @@
             <Timeline
                 events={timelineEvents}
                 title="Profile Activity History"
+                {webExplorerUriTkn}
             />
         {:else}
             <div
