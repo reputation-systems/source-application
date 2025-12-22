@@ -5,15 +5,24 @@
     import { Label } from "$lib/components/ui/label/index.js";
     import { Textarea } from "$lib/components/ui/textarea";
     import { AlertTriangle } from "lucide-svelte";
+    import { reputation_proof } from "$lib/ergo/store";
+    import { type ReputationProof } from "$lib/ergo/object";
 
     // Props for island mode
-    export let hasProfile = false;
+    export let profile: ReputationProof | null = null;
+    const hasProfile = profile !== null;
     export let onSourceAdded: ((txId: string) => void) | null = null;
+    let className: string = "";
+    export { className as class };
 
+    const baseClasses = "bg-card p-6 rounded-lg border";
+    
     let newFileHash = "";
     let newSourceUrl = "";
     let isAddingSource = false;
     let addError: string | null = null;
+
+    reputation_proof.set(profile);
 
     async function handleAddSource() {
         if (!newFileHash.trim() || !newSourceUrl.trim()) return;
@@ -41,7 +50,7 @@
     }
 </script>
 
-<div class="bg-card p-6 rounded-lg border">
+<div class="{baseClasses} {className}">
     <h3 class="text-xl font-semibold mb-4">Add New File Source</h3>
 
     <div

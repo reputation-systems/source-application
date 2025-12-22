@@ -84,45 +84,34 @@ Form for adding new file sources to the network.
 
 ### FileSourceCard
 
-Complete file source display with all interactions.
+Complete file source display for a specific file hash, including tabs for sources, profile views, and timeline.
 
 **Props:**
-- `source: FileSource` - File source object (required)
-- `confirmations: FileSource[]` - Array of confirmations
-- `invalidations: InvalidFileSource[]` - Array of invalidations
-- `unavailabilities: UnavailableSource[]` - Array of unavailabilities
+- `fileHash: string` - The Blake2b256 hash of the file to display (required)
+- `profile?: ReputationProof | null` - The current user's profile (optional, for enabling actions)
+- `class?: string` - CSS class for the container (optional)
 
 **Usage:**
 ```svelte
 <script>
   import { FileSourceCard } from 'source-application';
   
-  let source = {
-    id: "...",
-    fileHash: "abc123...",
-    sourceUrl: "https://example.com/file.zip",
-    ownerTokenId: "...",
-    reputationAmount: 100,
-    timestamp: Date.now()
-  };
+  let fileHash = "abc123...";
+  let profile = null; // Load from fetchProfile
 </script>
 
 <FileSourceCard 
-  {source}
-  confirmations={[]}
-  invalidations={[]}
-  unavailabilities={[]}
+  {fileHash}
+  {profile}
 />
 ```
 
 **Features:**
-- Owner avatar and information
-- File hash and source URL display
-- Confirmation/invalidation/unavailability scores
-- Action buttons: Confirm, Mark Invalid, Mark Unavailable
-- Update source URL functionality
-- Status badges and visual indicators
-- Timeline view
+- Automatically fetches and displays sources for the given hash
+- Tabs: By Source, By Profile, Timeline
+- Aggregated statistics (Total Sources, etc.)
+- Full interaction support (Confirm, Invalidate, Unavailable)
+- Responsive design
 
 ---
 
@@ -483,11 +472,7 @@ explorer_uri.set('https://api.ergoplatform.com');
     FileSourceCreation,
     FileSourceCard,
     fetchProfile,
-    searchByHash,
-    reputation_proof,
-    fileSources,
-    invalidFileSources,
-    unavailableSources
+    reputation_proof
   } from 'source-application';
   
   let ergo; // Wallet connector
@@ -500,15 +485,7 @@ explorer_uri.set('https://api.ergoplatform.com');
     }
   }
   
-  // Search for sources
-  async function search() {
-    if (fileHash) {
-      await searchByHash(fileHash);
-    }
-  }
-  
   $: profile = $reputation_proof;
-  $: sources = $fileSources[fileHash]?.data || [];
 </script>
 
 <!-- Profile Management -->
@@ -519,19 +496,17 @@ explorer_uri.set('https://api.ergoplatform.com');
   <FileSourceCreation hasProfile={true} />
 {/if}
 
-<!-- Search -->
-<input bind:value={fileHash} placeholder="Enter file hash" />
-<button on:click={search}>Search</button>
+<!-- Search & Display Results -->
+<div class="my-4">
+  <input bind:value={fileHash} placeholder="Enter file hash" />
+</div>
 
-<!-- Display Results -->
-{#each sources as source}
+{#if fileHash}
   <FileSourceCard
-    {source}
-    confirmations={sources.filter(s => s.sourceUrl === source.sourceUrl)}
-    invalidations={$invalidFileSources[source.id]?.data || []}
-    unavailabilities={$unavailableSources[source.sourceUrl]?.data || []}
+    {fileHash}
+    {profile}
   />
-{/each}
+{/if}
 ```
 
 ---
