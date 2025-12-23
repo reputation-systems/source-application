@@ -1,9 +1,6 @@
 // Source Application Library - Main Entry Point
 // This library provides functions and components for decentralized file discovery and verification
 
-// ===== PROFILE FUNCTIONS =====
-export { fetchProfile } from './ergo/profileFetch';
-
 // ===== SOURCE FETCH FUNCTIONS =====
 export {
     getTimestampFromBlockId,

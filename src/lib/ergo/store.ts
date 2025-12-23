@@ -1,5 +1,5 @@
 import { writable } from 'svelte/store';
-import { type ReputationProof, type TypeNFT } from './object';
+import { type ReputationProof, type TypeNFT } from 'ergo-reputation-system';
 import { type FileSource, type InvalidFileSource, type UnavailableSource, type ProfileOpinion } from './sourceObject';
 
 export const address = writable<string | null>(null);

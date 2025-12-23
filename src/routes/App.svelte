@@ -20,6 +20,7 @@
 		isLoading,
 		currentSearchHash,
 		error,
+        types,
 	} from "$lib/ergo/store";
 	import {
 		explorer_uri,
@@ -31,7 +32,7 @@
 	import { get } from "svelte/store";
 	import SettingsModal from "$lib/components/SettingsModal.svelte";
 	import ProfileModal from "$lib/components/ProfileModal.svelte";
-	import { fetchProfile } from "$lib/ergo/profileFetch";
+	import { fetchAllProfiles } from "ergo-reputation-system";
 	import {
 		createProfileBox,
 		searchByHash,
@@ -156,7 +157,9 @@
 
 	async function loadUserProfile() {
 		try {
-			const proof = await fetchProfile(ergo, get(explorer_uri));
+			const proofs = await fetchAllProfiles(null, [], get(types), get(explorer_uri));
+			const proof = proofs[0]  // TODO Select one.
+			console.log("Fetched profile proof:", proof);
 			reputation_proof.set(proof);
 			console.log("Profile loaded:", proof);
 		} catch (err) {

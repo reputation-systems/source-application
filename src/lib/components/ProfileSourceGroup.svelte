@@ -1,7 +1,6 @@
 <script lang="ts">
     import {
         type ProfileSourceGroup,
-        type FileSource,
         type InvalidFileSource,
         type UnavailableSource,
     } from "$lib/ergo/sourceObject";
