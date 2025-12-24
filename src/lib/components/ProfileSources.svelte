@@ -305,8 +305,8 @@
                     <FileSourceCard
                         {source}
                         profile={reputationProof}
-                        invalidations={invalidFileSources.data}
-                        unavailabilities={unavailableSources.data}
+                        invalidations={invalidFileSources[source.id]?.data || []}
+                        unavailabilities={unavailableSources[source.sourceUrl]?.data || []}
                         {explorerUri}
                         {webExplorerUriTx}
                         {webExplorerUriTkn}

@@ -322,7 +322,7 @@ export async function loadProfileData(profileTokenId: string, explorerUri: strin
     const invalidations = await fetchInvalidFileSourcesByProfile(profileTokenId, 50, explorerUri);
     const unavailabilities = await fetchUnavailableSourcesByProfile(profileTokenId, 50, explorerUri);
     const opinions = await fetchProfileOpinions(profileTokenId, explorerUri);
-    const opinionsGiven = await fetchProfileOpinionsByAuthor(profileTokenId, 50, explorerUri);
+    const opinionsGiven = await fetchProfileOpinionsByAuthor(profileTokenId, explorerUri);
 
     return {
         sources,

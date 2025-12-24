@@ -2,9 +2,19 @@ import { stringToBytes } from "@scure/base";
 import {
     ErgoAddress, SByte, SColl, SConstant, SGroupElement,
     type Box,
-    type InputBox,
     type Amount
 } from '@fleet-sdk/core';
+
+export interface InputBox {
+    boxId: string;
+    value: Amount;
+    assets: { tokenId: string; amount: Amount }[];
+    ergoTree: string;
+    creationHeight: number;
+    additionalRegisters: { [key: string]: string };
+    index: number;
+    transactionId: string;
+}
 
 export function hexToUtf8(hexString: string): string | null {
     try {
@@ -162,7 +172,7 @@ export function parseBox(e: Box<Amount>): InputBox {
         ergoTree: e.ergoTree,
         creationHeight: e.creationHeight,
         additionalRegisters: Object.entries(e.additionalRegisters).reduce((acc, [key, value]) => {
-            acc[key] = value.serializedValue;
+            if (value) acc[key] = value;
             return acc;
         }, {} as { [key: string]: string; }),
         index: e.index,
