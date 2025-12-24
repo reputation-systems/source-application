@@ -34,8 +34,11 @@ export async function createProfileBox(explorerUri: string): Promise<string> {
         true,
         { name: "Anon" },
         false, // Profile box should NOT be locked
-        explorerUri,
-        undefined
+        undefined,
+        [],
+        0n,
+        [],
+        explorerUri
     );
 
     if (!profileTxId) {
@@ -121,8 +124,11 @@ export async function addFileSource(fileHash: string, sourceUrl: string, proof: 
         true,               // R8: not used for FILE_SOURCE, but required by function
         sourceUrl,          // R9: source URL
         false,              // R6: unlocked (false)
-        explorerUri,
-        inputProofBox
+        inputProofBox,
+        [],
+        0n,
+        [],
+        explorerUri
     );
 
     if (!tx) throw new Error("File source transaction failed.");
@@ -157,8 +163,11 @@ export async function updateFileSource(
         true,
         newSourceUrl,
         false,
-        explorerUri,
-        inputProofBox
+        inputProofBox,
+        [],
+        0n,
+        [],
+        explorerUri
     );
 
     if (!tx) throw new Error("File source update transaction failed.");
@@ -204,8 +213,11 @@ export async function markInvalidSource(sourceBoxId: string, proof: ReputationPr
         false,              // R8: not used
         null,               // R9: no content needed
         false,               // R6: unlocked
-        explorerUri,
-        inputProofBox
+        inputProofBox,
+        [],
+        0n,
+        [],
+        explorerUri
     );
 
     if (!tx) throw new Error("Invalid source transaction failed.");
@@ -234,8 +246,11 @@ export async function markUnavailableSource(sourceUrl: string, proof: Reputation
         false,              // R8: not used
         null,               // R9: no content needed
         false,               // R6: unlocked
-        explorerUri,
-        inputProofBox
+        inputProofBox,
+        [],
+        0n,
+        [],
+        explorerUri
     );
 
     if (!tx) throw new Error("Unavailable source transaction failed.");
@@ -264,8 +279,11 @@ export async function trustProfile(profileTokenId: string, isTrusted: boolean, p
         isTrusted,          // R8: trust/distrust
         null,               // R9: no content needed
         false,              // R6: unlocked (allow trust changes)
-        explorerUri,
-        inputProofBox
+        inputProofBox,
+        [],
+        0n,
+        [],
+        explorerUri
     );
 
     if (!tx) throw new Error("Profile opinion transaction failed.");
