@@ -19,6 +19,7 @@ import {
     PROFILE_TYPE_NFT_ID,
 } from './envs';
 import { type FileSource, type InvalidFileSource, type UnavailableSource, type ProfileOpinion } from './sourceObject';
+import { searchBoxes } from 'ergo-reputation-system';
 
 // --- PROFILE MANAGEMENT ---
 
@@ -52,56 +53,6 @@ export async function createProfileBox(explorerUri: string): Promise<string> {
     return profileTxId;
 }
 
-/**
- * Gets the main box (the one with the most tokens) from the provided reputation proof.
- * If the proof is null/empty, it attempts to create the initial profile proof.
- */
-async function getOrCreateProfileBox(proof: ReputationProof | null, explorerUri: string, r4?: string, r5?: string): Promise<RPBox | null> {
-    if (!proof || !proof.current_boxes || proof.current_boxes.length === 0) {
-        console.log("No user reputation proof found. Creating profile proof...");
-        await createProfileBox(explorerUri);
-        return null;
-    } else {
-        // If r4 and r5 are provided, try to find a specific box
-        if (r4 && r5) {
-            const specificBox = proof.current_boxes.find(box =>
-                box.type.tokenId === r4 &&
-                box.object_pointer === r5
-            );
-            if (specificBox) {
-                console.log("Using specific box as input:", specificBox.box_id, "for R4/R5:", r4, r5);
-                return specificBox;
-            }
-        }
-
-        const mainBox = proof.current_boxes.find(box =>
-            box.type.tokenId === PROFILE_TYPE_NFT_ID &&
-            box.object_pointer === proof.token_id
-        );
-
-        if (!mainBox) {
-            console.warn("Main profile box not found in current boxes. Creating a new one...");
-            await createProfileBox(explorerUri);
-            return null;
-        }
-
-        if (mainBox.is_locked) {
-            throw new Error("Error: Your main profile box is locked (is_locked=true) and cannot be spent.");
-        }
-        if (mainBox.token_amount < 1) {
-            throw new Error("Error: You do not have enough reputation tokens left in your main box to perform this action.");
-        }
-
-        console.log(
-            "Using existing profile box as input:",
-            mainBox.box_id,
-            "with profile token:",
-            mainBox.token_id
-        );
-        return mainBox;
-    }
-}
-
 // --- TRANSACTION FUNCTIONS ---
 
 /**
@@ -111,7 +62,11 @@ async function getOrCreateProfileBox(proof: ReputationProof | null, explorerUri:
 export async function addFileSource(fileHash: string, sourceUrl: string, proof: ReputationProof | null, explorerUri: string): Promise<string> {
     console.log("API: addFileSource", { fileHash, sourceUrl });
 
-    const inputProofBox = await getOrCreateProfileBox(proof, explorerUri);
+    console.log("Proof:", proof);
+
+    const inputProofBox = proof?.current_boxes.filter((b: RPBox) => b.type.tokenId === PROFILE_TYPE_NFT_ID)[0] || null;
+    console.log("Input profile box:", inputProofBox);
+
     if (!inputProofBox) {
         throw new Error("Profile box required but not available yet. Please wait for profile creation to confirm.");
     }

@@ -27,12 +27,13 @@
 		web_explorer_uri_tx,
 		web_explorer_uri_addr,
 		web_explorer_uri_tkn,
+        PROFILE_TYPE_NFT_ID,
 	} from "$lib/ergo/envs";
 	import { User, Settings, Search, Plus, UserPlus } from "lucide-svelte";
 	import { get } from "svelte/store";
 	import SettingsModal from "$lib/components/SettingsModal.svelte";
 	import ProfileModal from "$lib/components/ProfileModal.svelte";
-	import { fetchAllProfiles } from "ergo-reputation-system";
+	import { fetchAllProfiles, fetchTypeNfts } from "ergo-reputation-system";
 	import {
 		createProfileBox,
 		searchByHash,
@@ -157,7 +158,8 @@
 
 	async function loadUserProfile() {
 		try {
-			const proofs = await fetchAllProfiles(null, [], get(types), get(explorer_uri));
+			const types = await fetchTypeNfts(get(explorer_uri));
+			const proofs = await fetchAllProfiles(null, [PROFILE_TYPE_NFT_ID], types, get(explorer_uri));
 			const proof = proofs[0]  // TODO Select one.
 			console.log("Fetched profile proof:", proof);
 			reputation_proof.set(proof);
