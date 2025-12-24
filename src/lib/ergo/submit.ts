@@ -11,7 +11,6 @@ import {
     SBool
 } from '@fleet-sdk/core';
 import { type RPBox } from 'ergo-reputation-system';
-import { explorer_uri } from './envs';
 import { ergo_tree_address } from './contract';
 import { hexToBytes, hexOrUtf8ToBytes } from './utils';
 import { stringToBytes } from '@scure/base';
