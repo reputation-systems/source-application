@@ -153,16 +153,6 @@ const sources = await fetchFileSourcesByHash("abc123...");
 // Returns: FileSource[]
 ```
 
-#### fetchAllFileSources
-Fetch recent file sources for browsing.
-
-```typescript
-import { fetchAllFileSources } from 'source-application';
-
-const sources = await fetchAllFileSources(50); // limit = 50
-// Returns: FileSource[]
-```
-
 #### fetchFileSourcesByProfile
 Fetch all file sources created by a specific profile.
 

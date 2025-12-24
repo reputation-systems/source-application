@@ -6,7 +6,6 @@ import {
     fetchUnavailableSources,
     fetchProfileOpinions,
     fetchProfileOpinionsByAuthor,
-    fetchAllFileSources,
     fetchFileSourcesByProfile,
     fetchInvalidFileSourcesByProfile,
     fetchUnavailableSourcesByProfile
