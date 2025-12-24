@@ -1,5 +1,5 @@
 import { type FileSource, type ProfileOpinion } from './sourceObject';
-import { hexOrUtf8ToBytes, hexToBytes, hexToUtf8, serializedToRendered } from './utils';
+import { hexToBytes, hexToUtf8, serializedToRendered } from './utils';
 import {
     FILE_SOURCE_TYPE_NFT_ID,
     INVALID_FILE_SOURCE_TYPE_NFT_ID,
@@ -11,94 +11,8 @@ import { SByte, SColl } from '@fleet-sdk/core';
 import DOMPurify from "dompurify";
 import { type ApiBox } from './object';
 import { type InvalidFileSource, type UnavailableSource } from './sourceObject';
+import { getTimestampFromBlockId, searchBoxes } from 'ergo-reputation-system';
 
-
-const LIMIT_PER_PAGE = 100;
-
-/**
- * Gets the timestamp of a block given its block ID.
- */
-export async function getTimestampFromBlockId(blockId: string, explorerUri: string): Promise<number> {
-    const url = `${explorerUri}/api/v1/blocks/${blockId}`;
-
-    try {
-        const response = await fetch(url, { method: "GET" });
-        if (!response.ok) {
-            throw new Error(`HTTP ${response.status}`);
-        }
-
-        const json = await response.json();
-        const timestamp = json?.block?.header?.timestamp;
-        if (typeof timestamp !== "number") {
-            console.warn(`No timestamp found for block ${blockId}`);
-            return 0;
-        }
-
-        return timestamp < 1e11 ? timestamp * 1000 : timestamp;
-    } catch (error) {
-        console.error(`Error fetching timestamp for block ${blockId}:`, error);
-        return 0;
-    }
-}
-
-/**
- * Generic search function for boxes with specific R4 and R5 values
- */
-async function searchBoxes(
-    r4TypeNftId: string,
-    r5Value: string,
-    explorerUri: string
-): Promise<ApiBox[]> {
-    const boxes: ApiBox[] = [];
-
-    const searchBody = {
-        registers: {
-            "R4": serializedToRendered(SColl(SByte, hexToBytes(r4TypeNftId) ?? "").toHex()),
-            "R5": serializedToRendered(SColl(SByte, hexOrUtf8ToBytes(r5Value) ?? "").toHex())
-        }
-    };
-
-    try {
-        let offset = 0;
-        let moreDataAvailable = true;
-
-        while (moreDataAvailable) {
-            const url = `${explorerUri}/api/v1/boxes/unspent/search?offset=${offset}&limit=${LIMIT_PER_PAGE}`;
-
-            const finalBody = {
-                "ergoTreeTemplateHash": ergo_tree_hash,
-                "registers": searchBody.registers,
-                "assets": []
-            };
-
-            const response = await fetch(url, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(finalBody)
-            });
-
-            if (!response.ok) {
-                console.error(`Error searching boxes: ${response.statusText}`);
-                moreDataAvailable = false;
-                continue;
-            }
-
-            const jsonData = await response.json();
-            if (!jsonData.items || jsonData.items.length === 0) {
-                moreDataAvailable = false;
-                continue;
-            }
-
-            boxes.push(...jsonData.items);
-            offset += LIMIT_PER_PAGE;
-        }
-
-        return boxes;
-    } catch (error) {
-        console.error('Error while searching boxes:', error);
-        return [];
-    }
-}
 
 /**
  * Fetch all FILE_SOURCE boxes for a specific file hash.

@@ -3,7 +3,6 @@
 
 // ===== SOURCE FETCH FUNCTIONS =====
 export {
-    getTimestampFromBlockId,
     fetchFileSourcesByHash,
     fetchInvalidFileSources,
     fetchUnavailableSources,
