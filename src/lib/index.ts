@@ -7,7 +7,6 @@ export {
     fetchInvalidFileSources,
     fetchUnavailableSources,
     fetchProfileOpinions,
-    fetchAllFileSources,
     fetchFileSourcesByProfile,
     fetchInvalidFileSourcesByProfile,
     fetchUnavailableSourcesByProfile,
@@ -24,7 +23,6 @@ export {
     markUnavailableSource,
     trustProfile,
     searchByHash,
-    loadAllSources
 } from './ergo/sourceStore';
 
 // ===== SOURCE OBJECT TYPES & HELPERS =====

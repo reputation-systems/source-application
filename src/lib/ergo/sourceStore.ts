@@ -307,13 +307,6 @@ export async function searchByHash(fileHash: string, explorerUri: string): Promi
     return { sources, invalidations, unavailabilities };
 }
 
-/**
- * Load all file sources for browsing.
- */
-export async function loadAllSources(explorerUri: string): Promise<FileSource[]> {
-    return await fetchAllFileSources(50, explorerUri);
-}
-
 export interface ProfileData {
     sources: FileSource[];
     invalidations: InvalidFileSource[];
