@@ -1,4 +1,4 @@
-import { generate_reputation_proof } from './submit';
+import { create_profile, create_opinion, update_opinion, remove_opinion } from 'ergo-reputation-system';
 import { type RPBox, type ReputationProof } from 'ergo-reputation-system';
 import { type FileSource } from './sourceObject';
 import {
@@ -25,19 +25,11 @@ function getMainProfileBox(proof: ReputationProof | null): RPBox | null {
  * Creates a user profile box (same as forum).
  */
 export async function createProfileBox(explorerUri: string): Promise<string> {
-    const profileTxId = await generate_reputation_proof(
-        PROFILE_TOTAL_SUPPLY,   // token_amount: Amount of reputation tokens for new box
-        PROFILE_TOTAL_SUPPLY,   // total_supply: Total supply when minting new token
-        PROFILE_TYPE_NFT_ID,    // type_nft_id: Type NFT that defines this proof standard
-        undefined,              // object_pointer: R5 - Points to self (token ID) for profiles
-        true,                   // polarization: R8 - Not used for profiles, default true
-        { name: "Anon" },       // content: R9 - Profile metadata JSON
-        false,                  // is_locked: R6 - Profile box should NOT be locked
-        undefined,              // opinion_box: No existing box (minting new)
-        [],                     // main_boxes: No liquidity boxes needed
-        0n,                     // extra_erg: No extra ERG to add
-        [],                     // extra_tokens: No extra tokens to sacrifice
-        explorerUri             // explorerUri: Explorer API endpoint
+    const profileTxId = await create_profile(
+        PROFILE_TOTAL_SUPPLY,
+        PROFILE_TYPE_NFT_ID,
+        explorerUri,
+        { name: "Anon" }
     );
 
     if (!profileTxId) {
@@ -67,19 +59,15 @@ export async function addFileSource(fileHash: string, sourceUrl: string, proof: 
         throw new Error("Profile box required but not available yet. Please wait for profile creation to confirm.");
     }
 
-    const tx = await generate_reputation_proof(
-        1,                          // token_amount: 1 token for this file source opinion
-        PROFILE_TOTAL_SUPPLY,       // total_supply: Not used when modifying existing proof
+    const tx = await create_opinion(
+        1,                          // token_amount: 1 token for the new file source box
         FILE_SOURCE_TYPE_NFT_ID,    // type_nft_id: Type NFT for FILE_SOURCE
-        fileHash,                   // object_pointer: R5 - The file hash this source refers to
-        true,                       // polarization: R8 - Positive (source exists)
-        sourceUrl,                  // content: R9 - The URL where the file can be found
-        false,                      // is_locked: R6 - Unlocked (can be updated)
-        undefined,                  // opinion_box
-        [mainBox],                  // main_boxes: The profile box as liquidity
-        0n,                         // extra_erg: No extra ERG
-        [],                         // extra_tokens: No extra tokens
-        explorerUri                 // explorerUri: Explorer API endpoint
+        explorerUri,                // explorerUri: Explorer API endpoint
+        fileHash,                   // object_pointer: R5 - The file hash
+        true,                       // polarization: R8 - Positive opinion
+        sourceUrl,                  // content: R9 - The source URL
+        false,                      // is_locked: R6 - Unlocked
+        mainBox                     // main_box: The profile box to split from
     );
 
     if (!tx) throw new Error("File source transaction failed.");
@@ -107,19 +95,11 @@ export async function updateFileSource(
         throw new Error("File source box to update not found.");
     }
 
-    const tx = await generate_reputation_proof(
-        1,                          // token_amount: Keep 1 token in updated box
-        PROFILE_TOTAL_SUPPLY,       // total_supply: Not used when modifying
-        FILE_SOURCE_TYPE_NFT_ID,    // type_nft_id: Type NFT for FILE_SOURCE
-        fileHash,                   // object_pointer: R5 - Same file hash
-        true,                       // polarization: R8 - Positive
-        newSourceUrl,               // content: R9 - Updated URL
-        false,                      // is_locked: R6 - Unlocked
-        existingBox,                // opinion_box: The existing file source box to update
-        [],                         // main_boxes: No additional liquidity boxes
-        0n,                         // extra_erg: No extra ERG
-        [],                         // extra_tokens: No extra tokens
-        explorerUri                 // explorerUri: Explorer API endpoint
+    const tx = await update_opinion(
+        existingBox,
+        explorerUri,
+        true,
+        newSourceUrl
     );
 
     if (!tx) throw new Error("File source update transaction failed.");
@@ -157,19 +137,15 @@ export async function markInvalidSource(sourceBoxId: string, proof: ReputationPr
         throw new Error("Profile box required but not available yet.");
     }
 
-    const tx = await generate_reputation_proof(
-        1,                              // token_amount: 1 token for this invalidation opinion
-        PROFILE_TOTAL_SUPPLY,           // total_supply: Not used when modifying
-        INVALID_FILE_SOURCE_TYPE_NFT_ID, // type_nft_id: Type NFT for INVALID_FILE_SOURCE
-        sourceBoxId,                    // object_pointer: R5 - The box ID being invalidated
-        false,                          // polarization: R8 - Negative (marking as invalid)
-        null,                           // content: R9 - No additional content
-        false,                          // is_locked: R6 - Unlocked
-        undefined,                      // opinion_box
-        [mainBox],                      // main_boxes: The profile box as liquidity
-        0n,                             // extra_erg: No extra ERG
-        [],                             // extra_tokens: No extra tokens
-        explorerUri                     // explorerUri: Explorer API endpoint
+    const tx = await create_opinion(
+        1,
+        INVALID_FILE_SOURCE_TYPE_NFT_ID,
+        explorerUri,
+        sourceBoxId,
+        false,
+        null,
+        false,
+        mainBox
     );
 
     if (!tx) throw new Error("Invalid source transaction failed.");
@@ -190,19 +166,15 @@ export async function markUnavailableSource(sourceUrl: string, proof: Reputation
         throw new Error("Profile box required but not available yet.");
     }
 
-    const tx = await generate_reputation_proof(
-        1,                              // token_amount: 1 token for this unavailability opinion
-        PROFILE_TOTAL_SUPPLY,           // total_supply: Not used when modifying
-        UNAVAILABLE_SOURCE_TYPE_NFT_ID, // type_nft_id: Type NFT for UNAVAILABLE_SOURCE
-        sourceUrl,                      // object_pointer: R5 - The URL being marked unavailable
-        false,                          // polarization: R8 - Negative (unavailable)
-        null,                           // content: R9 - No additional content
-        false,                          // is_locked: R6 - Unlocked
-        undefined,                      // opinion_box
-        [mainBox],                      // main_boxes: The profile box as liquidity
-        0n,                             // extra_erg: No extra ERG
-        [],                             // extra_tokens: No extra tokens
-        explorerUri                     // explorerUri: Explorer API endpoint
+    const tx = await create_opinion(
+        1,
+        UNAVAILABLE_SOURCE_TYPE_NFT_ID,
+        explorerUri,
+        sourceUrl,
+        false,
+        null,
+        false,
+        mainBox
     );
 
     if (!tx) throw new Error("Unavailable source transaction failed.");
@@ -223,19 +195,15 @@ export async function trustProfile(profileTokenId: string, isTrusted: boolean, p
         throw new Error("Profile box required but not available yet.");
     }
 
-    const tx = await generate_reputation_proof(
-        1,                          // token_amount: 1 token for this trust opinion
-        PROFILE_TOTAL_SUPPLY,       // total_supply: Not used when modifying
-        PROFILE_OPINION_TYPE_NFT_ID, // type_nft_id: Type NFT for PROFILE_OPINION
-        profileTokenId,             // object_pointer: R5 - The profile token ID being rated
-        isTrusted,                  // polarization: R8 - true=trust, false=distrust
-        null,                       // content: R9 - No additional content
-        false,                      // is_locked: R6 - Unlocked (allow trust changes)
-        opinionBox,                 // opinion_box: The profile box to split from
-        [],                         // main_boxes: No additional liquidity boxes
-        0n,                         // extra_erg: No extra ERG
-        [],                         // extra_tokens: No extra tokens
-        explorerUri                 // explorerUri: Explorer API endpoint
+    const tx = await create_opinion(
+        1,
+        PROFILE_OPINION_TYPE_NFT_ID,
+        explorerUri,
+        profileTokenId,
+        isTrusted,
+        null,
+        false,
+        opinionBox
     );
 
     if (!tx) throw new Error("Profile opinion transaction failed.");
