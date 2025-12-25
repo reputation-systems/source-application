@@ -24,11 +24,12 @@ import { getTimestampFromBlockId, searchBoxes } from 'ergo-reputation-system';
  */
 export async function fetchFileSourcesByHash(fileHash: string, explorerUri: string): Promise<FileSource[]> {
     console.log("Fetching file sources for hash:", fileHash);
-    const generator = (searchBoxes as any)(explorerUri, FILE_SOURCE_TYPE_NFT_ID, fileHash, undefined, undefined, undefined, undefined, undefined, undefined);
+    const generator = (searchBoxes as any)(explorerUri, undefined, FILE_SOURCE_TYPE_NFT_ID, fileHash, undefined, undefined, undefined, undefined, undefined, undefined);
     const boxes = await collectBoxes(generator);
 
     const sources: FileSource[] = [];
 
+    console.log(`Found ${boxes.length} boxes for file hash ${fileHash}`);
     for (const box of boxes) {
         if (!box.assets?.length) continue;
         if (box.additionalRegisters.R6?.renderedValue !== "false") continue;
@@ -61,6 +62,7 @@ export async function fetchFileSourcesByHash(fileHash: string, explorerUri: stri
     }
 
     sources.sort((a, b) => b.timestamp - a.timestamp);
+    console.log(`Returning ${sources.length} valid sources for file hash ${fileHash}`);
     return sources;
 }
 
@@ -69,7 +71,7 @@ export async function fetchFileSourcesByHash(fileHash: string, explorerUri: stri
  */
 export async function fetchInvalidFileSources(sourceBoxId: string, explorerUri: string): Promise<InvalidFileSource[]> {
     console.log("Fetching invalidations for source:", sourceBoxId);
-    const generator = (searchBoxes as any)(explorerUri, INVALID_FILE_SOURCE_TYPE_NFT_ID, sourceBoxId, undefined, undefined, undefined, undefined, undefined, undefined);
+    const generator = (searchBoxes as any)(explorerUri, undefined, INVALID_FILE_SOURCE_TYPE_NFT_ID, sourceBoxId, undefined, undefined, undefined, undefined, undefined, undefined);
     const boxes = await collectBoxes(generator);
 
     const invalidations: InvalidFileSource[] = [];
@@ -97,7 +99,7 @@ export async function fetchInvalidFileSources(sourceBoxId: string, explorerUri: 
  */
 export async function fetchUnavailableSources(sourceUrl: string, explorerUri: string): Promise<UnavailableSource[]> {
     console.log("Fetching unavailabilities for URL:", sourceUrl);
-    const generator = (searchBoxes as any)(explorerUri, UNAVAILABLE_SOURCE_TYPE_NFT_ID, sourceUrl, undefined, undefined, undefined, undefined, undefined, undefined);
+    const generator = (searchBoxes as any)(explorerUri, undefined, UNAVAILABLE_SOURCE_TYPE_NFT_ID, sourceUrl, undefined, undefined, undefined, undefined, undefined, undefined);
     const boxes = await collectBoxes(generator);
 
     const unavailabilities: UnavailableSource[] = [];
@@ -126,7 +128,7 @@ export async function fetchUnavailableSources(sourceUrl: string, explorerUri: st
  */
 export async function fetchProfileOpinions(profileTokenId: string, explorerUri: string): Promise<ProfileOpinion[]> {
     console.log("Fetching profile opinions for:", profileTokenId);
-    const generator = (searchBoxes as any)(explorerUri, PROFILE_OPINION_TYPE_NFT_ID, profileTokenId, undefined, undefined, undefined, undefined, undefined, undefined);
+    const generator = (searchBoxes as any)(explorerUri, undefined, PROFILE_OPINION_TYPE_NFT_ID, profileTokenId, undefined, undefined, undefined, undefined, undefined, undefined);
     const boxes = await collectBoxes(generator);
 
     const opinions: ProfileOpinion[] = [];
