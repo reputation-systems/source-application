@@ -10,7 +10,9 @@ export {
     fetchFileSourcesByProfile,
     fetchInvalidFileSourcesByProfile,
     fetchUnavailableSourcesByProfile,
-    fetchProfileOpinionsByAuthor
+    fetchProfileOpinionsByAuthor,
+    searchByHash,
+    loadProfileData
 } from './ergo/sourceFetch';
 
 // ===== SOURCE STORE FUNCTIONS =====
@@ -21,8 +23,7 @@ export {
     confirmSource,
     markInvalidSource,
     markUnavailableSource,
-    trustProfile,
-    searchByHash,
+    trustProfile
 } from './ergo/sourceStore';
 
 // ===== SOURCE OBJECT TYPES & HELPERS =====
@@ -34,7 +35,9 @@ export type {
     TimelineEvent,
     FileSourceWithScore,
     DownloadSourceGroup,
-    ProfileSourceGroup
+    ProfileSourceGroup,
+    SearchResult,
+    ProfileData
 } from './ergo/sourceObject';
 
 export {

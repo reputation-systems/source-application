@@ -1,4 +1,11 @@
-import { type FileSource, type ProfileOpinion } from './sourceObject';
+import {
+    type FileSource,
+    type ProfileOpinion,
+    type SearchResult,
+    type ProfileData,
+    type InvalidFileSource,
+    type UnavailableSource
+} from './sourceObject';
 import { hexToUtf8 } from './utils';
 import {
     FILE_SOURCE_TYPE_NFT_ID,
@@ -6,10 +13,8 @@ import {
     UNAVAILABLE_SOURCE_TYPE_NFT_ID,
     PROFILE_OPINION_TYPE_NFT_ID
 } from './envs';
-
 import DOMPurify from "dompurify";
 import { type ApiBox } from './object';
-import { type InvalidFileSource, type UnavailableSource } from './sourceObject';
 import { getTimestampFromBlockId, searchBoxes } from 'ergo-reputation-system';
 
 
@@ -269,6 +274,49 @@ export async function fetchProfileOpinionsByAuthor(authorTokenId: string, explor
         });
     }
     return opinions;
+}
+
+/**
+ * Load file sources by hash.
+ */
+export async function searchByHash(fileHash: string, explorerUri: string): Promise<SearchResult> {
+    const sources = await fetchFileSourcesByHash(fileHash, explorerUri);
+    const invalidations: { [sourceId: string]: InvalidFileSource[] } = {};
+    const unavailabilities: { [sourceUrl: string]: UnavailableSource[] } = {};
+
+    for (const source of sources) {
+        // Fetch invalidations for this box
+        const invs = await fetchInvalidFileSources(source.id, explorerUri);
+        if (invs.length > 0) invalidations[source.id] = invs;
+
+        // Fetch unavailabilities for this URL
+        // Optimization: check if we already fetched for this URL
+        if (!unavailabilities[source.sourceUrl]) {
+            const unavs = await fetchUnavailableSources(source.sourceUrl, explorerUri);
+            if (unavs.length > 0) unavailabilities[source.sourceUrl] = unavs;
+        }
+    }
+
+    return { sources, invalidations, unavailabilities };
+}
+
+/**
+ * Load all data related to a profile.
+ */
+export async function loadProfileData(profileTokenId: string, explorerUri: string): Promise<ProfileData> {
+    const sources = await fetchFileSourcesByProfile(profileTokenId, 50, explorerUri);
+    const invalidations = await fetchInvalidFileSourcesByProfile(profileTokenId, 50, explorerUri);
+    const unavailabilities = await fetchUnavailableSourcesByProfile(profileTokenId, 50, explorerUri);
+    const opinions = await fetchProfileOpinions(profileTokenId, explorerUri);
+    const opinionsGiven = await fetchProfileOpinionsByAuthor(profileTokenId, explorerUri);
+
+    return {
+        sources,
+        invalidations,
+        unavailabilities,
+        opinions,
+        opinionsGiven
+    };
 }
 
 async function collectBoxes(generator: AsyncGenerator<ApiBox[]>): Promise<ApiBox[]> {

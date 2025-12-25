@@ -34,11 +34,8 @@
 	import SettingsModal from "$lib/components/SettingsModal.svelte";
 	import ProfileModal from "$lib/components/ProfileModal.svelte";
 	import { fetchAllProfiles, fetchTypeNfts } from "ergo-reputation-system";
-	import {
-		createProfileBox,
-		searchByHash,
-		loadProfileData,
-	} from "$lib/ergo/sourceStore";
+	import { createProfileBox } from "$lib/ergo/sourceStore";
+	import { searchByHash, loadProfileData } from "$lib/ergo/sourceFetch";
 	import ProfileSources from "$lib/components/ProfileSources.svelte";
 	import SearchByHash from "$lib/components/SearchByHash.svelte";
 	import { Button } from "$lib/components/ui/button/index.js";

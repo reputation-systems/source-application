@@ -65,6 +65,20 @@ export interface TimelineEvent {
     data: any;
 }
 
+export interface SearchResult {
+    sources: FileSource[];
+    invalidations: { [sourceId: string]: InvalidFileSource[] };
+    unavailabilities: { [sourceUrl: string]: UnavailableSource[] };
+}
+
+export interface ProfileData {
+    sources: FileSource[];
+    invalidations: InvalidFileSource[];
+    unavailabilities: UnavailableSource[];
+    opinions: ProfileOpinion[];
+    opinionsGiven: ProfileOpinion[];
+}
+
 // --- AGGREGATED DATA STRUCTURES ---
 
 /**

@@ -1,16 +1,6 @@
 import { generate_reputation_proof } from './submit';
 import { type RPBox, type ReputationProof } from '$lib/ergo/object';
 import {
-    fetchFileSourcesByHash,
-    fetchInvalidFileSources,
-    fetchUnavailableSources,
-    fetchProfileOpinions,
-    fetchProfileOpinionsByAuthor,
-    fetchFileSourcesByProfile,
-    fetchInvalidFileSourcesByProfile,
-    fetchUnavailableSourcesByProfile
-} from './sourceFetch';
-import {
     FILE_SOURCE_TYPE_NFT_ID,
     INVALID_FILE_SOURCE_TYPE_NFT_ID,
     UNAVAILABLE_SOURCE_TYPE_NFT_ID,
@@ -18,8 +8,7 @@ import {
     PROFILE_TOTAL_SUPPLY,
     PROFILE_TYPE_NFT_ID,
 } from './envs';
-import { type FileSource, type InvalidFileSource, type UnavailableSource, type ProfileOpinion } from './sourceObject';
-import { searchBoxes } from 'ergo-reputation-system';
+import { type FileSource } from './sourceObject';
 
 /**
  * Gets the main profile box from a ReputationProof.
@@ -257,60 +246,8 @@ export async function trustProfile(profileTokenId: string, isTrusted: boolean, p
 
 // --- FETCH ACTIONS (Return data, do not update stores) ---
 
-export interface SearchResult {
-    sources: FileSource[];
-    invalidations: { [sourceId: string]: InvalidFileSource[] };
-    unavailabilities: { [sourceUrl: string]: UnavailableSource[] };
-}
 
-/**
- * Load file sources by hash.
- */
-export async function searchByHash(fileHash: string, explorerUri: string): Promise<SearchResult> {
-    const sources = await fetchFileSourcesByHash(fileHash, explorerUri);
-    const invalidations: { [sourceId: string]: InvalidFileSource[] } = {};
-    const unavailabilities: { [sourceUrl: string]: UnavailableSource[] } = {};
 
-    for (const source of sources) {
-        // Fetch invalidations for this box
-        const invs = await fetchInvalidFileSources(source.id, explorerUri);
-        if (invs.length > 0) invalidations[source.id] = invs;
 
-        // Fetch unavailabilities for this URL
-        // Optimization: check if we already fetched for this URL
-        if (!unavailabilities[source.sourceUrl]) {
-            const unavs = await fetchUnavailableSources(source.sourceUrl, explorerUri);
-            if (unavs.length > 0) unavailabilities[source.sourceUrl] = unavs;
-        }
-    }
 
-    return { sources, invalidations, unavailabilities };
-}
-
-export interface ProfileData {
-    sources: FileSource[];
-    invalidations: InvalidFileSource[];
-    unavailabilities: UnavailableSource[];
-    opinions: ProfileOpinion[];
-    opinionsGiven: ProfileOpinion[];
-}
-
-/**
- * Load all data related to a profile.
- */
-export async function loadProfileData(profileTokenId: string, explorerUri: string): Promise<ProfileData> {
-    const sources = await fetchFileSourcesByProfile(profileTokenId, 50, explorerUri);
-    const invalidations = await fetchInvalidFileSourcesByProfile(profileTokenId, 50, explorerUri);
-    const unavailabilities = await fetchUnavailableSourcesByProfile(profileTokenId, 50, explorerUri);
-    const opinions = await fetchProfileOpinions(profileTokenId, explorerUri);
-    const opinionsGiven = await fetchProfileOpinionsByAuthor(profileTokenId, explorerUri);
-
-    return {
-        sources,
-        invalidations,
-        unavailabilities,
-        opinions,
-        opinionsGiven
-    };
-}
 
