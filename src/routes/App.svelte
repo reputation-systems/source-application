@@ -19,8 +19,7 @@
 		profileUnavailabilities,
 		isLoading,
 		currentSearchHash,
-		error,
-        types,
+		error
 	} from "$lib/ergo/store";
 	import {
 		explorer_uri,
