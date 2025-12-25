@@ -156,7 +156,7 @@
 	async function loadUserProfile() {
 		try {
 			const types = await fetchTypeNfts(get(explorer_uri));
-			const proofs = await fetchAllProfiles(null, [PROFILE_TYPE_NFT_ID], types, get(explorer_uri));
+			const proofs = await fetchAllProfiles(get(explorer_uri), true, [PROFILE_TYPE_NFT_ID], types);
 			const proof = proofs[0]  // TODO Select one.
 			console.log("Fetched profile proof:", proof);
 			reputation_proof.set(proof);
