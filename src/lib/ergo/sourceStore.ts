@@ -1,4 +1,4 @@
-import { generate_reputation_proof } from 'ergo-reputation-system';
+import { generate_reputation_proof } from './submit';
 import { type RPBox, type ReputationProof } from 'ergo-reputation-system';
 import { type FileSource } from './sourceObject';
 import {
@@ -60,10 +60,10 @@ export async function addFileSource(fileHash: string, sourceUrl: string, proof: 
 
     console.log("Proof:", proof);
 
-    const opinionBox = getMainProfileBox(proof);
-    console.log("Opinion box (profile):", opinionBox);
+    const mainBox = getMainProfileBox(proof);
+    console.log("Opinion box (profile):", mainBox);
 
-    if (!opinionBox) {
+    if (!mainBox) {
         throw new Error("Profile box required but not available yet. Please wait for profile creation to confirm.");
     }
 
@@ -75,8 +75,8 @@ export async function addFileSource(fileHash: string, sourceUrl: string, proof: 
         true,                       // polarization: R8 - Positive (source exists)
         sourceUrl,                  // content: R9 - The URL where the file can be found
         false,                      // is_locked: R6 - Unlocked (can be updated)
-        opinionBox,                 // opinion_box: The profile box to split from
-        [],                         // main_boxes: No additional liquidity boxes
+        undefined,                  // opinion_box
+        [mainBox],                  // main_boxes: The profile box as liquidity
         0n,                         // extra_erg: No extra ERG
         [],                         // extra_tokens: No extra tokens
         explorerUri                 // explorerUri: Explorer API endpoint
@@ -152,8 +152,8 @@ export async function confirmSource(fileHash: string, sourceUrl: string, proof: 
 export async function markInvalidSource(sourceBoxId: string, proof: ReputationProof | null, explorerUri: string): Promise<string> {
     console.log("API: markInvalidSource", { sourceBoxId });
 
-    const opinionBox = getMainProfileBox(proof);
-    if (!opinionBox) {
+    const mainBox = getMainProfileBox(proof);
+    if (!mainBox) {
         throw new Error("Profile box required but not available yet.");
     }
 
@@ -165,8 +165,8 @@ export async function markInvalidSource(sourceBoxId: string, proof: ReputationPr
         false,                          // polarization: R8 - Negative (marking as invalid)
         null,                           // content: R9 - No additional content
         false,                          // is_locked: R6 - Unlocked
-        opinionBox,                     // opinion_box: The profile box to split from
-        [],                             // main_boxes: No additional liquidity boxes
+        undefined,                      // opinion_box
+        [mainBox],                      // main_boxes: The profile box as liquidity
         0n,                             // extra_erg: No extra ERG
         [],                             // extra_tokens: No extra tokens
         explorerUri                     // explorerUri: Explorer API endpoint
@@ -185,8 +185,8 @@ export async function markInvalidSource(sourceBoxId: string, proof: ReputationPr
 export async function markUnavailableSource(sourceUrl: string, proof: ReputationProof | null, explorerUri: string): Promise<string> {
     console.log("API: markUnavailableSource", sourceUrl);
 
-    const opinionBox = getMainProfileBox(proof);
-    if (!opinionBox) {
+    const mainBox = getMainProfileBox(proof);
+    if (!mainBox) {
         throw new Error("Profile box required but not available yet.");
     }
 
@@ -198,8 +198,8 @@ export async function markUnavailableSource(sourceUrl: string, proof: Reputation
         false,                          // polarization: R8 - Negative (unavailable)
         null,                           // content: R9 - No additional content
         false,                          // is_locked: R6 - Unlocked
-        opinionBox,                     // opinion_box: The profile box to split from
-        [],                             // main_boxes: No additional liquidity boxes
+        undefined,                      // opinion_box
+        [mainBox],                      // main_boxes: The profile box as liquidity
         0n,                             // extra_erg: No extra ERG
         [],                             // extra_tokens: No extra tokens
         explorerUri                     // explorerUri: Explorer API endpoint
