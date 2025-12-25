@@ -60,9 +60,9 @@ export async function addFileSource(fileHash: string, sourceUrl: string, proof: 
     }
 
     const tx = await create_opinion(
+        explorerUri,                // explorerUri: Explorer API endpoint
         1,                          // token_amount: 1 token for the new file source box
         FILE_SOURCE_TYPE_NFT_ID,    // type_nft_id: Type NFT for FILE_SOURCE
-        explorerUri,                // explorerUri: Explorer API endpoint
         fileHash,                   // object_pointer: R5 - The file hash
         true,                       // polarization: R8 - Positive opinion
         sourceUrl,                  // content: R9 - The source URL
@@ -96,8 +96,8 @@ export async function updateFileSource(
     }
 
     const tx = await update_opinion(
-        existingBox,
         explorerUri,
+        existingBox,
         true,
         newSourceUrl
     );
@@ -138,9 +138,9 @@ export async function markInvalidSource(sourceBoxId: string, proof: ReputationPr
     }
 
     const tx = await create_opinion(
+        explorerUri,
         1,
         INVALID_FILE_SOURCE_TYPE_NFT_ID,
-        explorerUri,
         sourceBoxId,
         false,
         null,
@@ -167,9 +167,9 @@ export async function markUnavailableSource(sourceUrl: string, proof: Reputation
     }
 
     const tx = await create_opinion(
+        explorerUri,
         1,
         UNAVAILABLE_SOURCE_TYPE_NFT_ID,
-        explorerUri,
         sourceUrl,
         false,
         null,
@@ -196,9 +196,9 @@ export async function trustProfile(profileTokenId: string, isTrusted: boolean, p
     }
 
     const tx = await create_opinion(
+        explorerUri,
         1,
         PROFILE_OPINION_TYPE_NFT_ID,
-        explorerUri,
         profileTokenId,
         isTrusted,
         null,
@@ -211,11 +211,6 @@ export async function trustProfile(profileTokenId: string, isTrusted: boolean, p
 
     return tx;
 }
-
-// --- FETCH ACTIONS (Return data, do not update stores) ---
-
-
-
 
 
 
