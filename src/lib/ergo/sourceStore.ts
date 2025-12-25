@@ -1,5 +1,6 @@
-import { generate_reputation_proof } from './submit';
-import { type RPBox, type ReputationProof } from '$lib/ergo/object';
+import { generate_reputation_proof } from 'ergo-reputation-system';
+import { type RPBox, type ReputationProof } from 'ergo-reputation-system';
+import { type FileSource } from './sourceObject';
 import {
     FILE_SOURCE_TYPE_NFT_ID,
     INVALID_FILE_SOURCE_TYPE_NFT_ID,
@@ -8,7 +9,6 @@ import {
     PROFILE_TOTAL_SUPPLY,
     PROFILE_TYPE_NFT_ID,
 } from './envs';
-import { type FileSource } from './sourceObject';
 
 /**
  * Gets the main profile box from a ReputationProof.
