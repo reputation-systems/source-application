@@ -11,6 +11,7 @@
     export let profile: ReputationProof | null = null;
     export let explorerUri: string;
     export let onSourceAdded: ((txId: string) => void) | null = null;
+    export let hash: string | undefined = undefined;
 
     let className: string = "";
     export { className as class };
@@ -18,7 +19,10 @@
     const hasProfile = profile !== null;
     const baseClasses = "bg-card p-6 rounded-lg border";
 
-    let newFileHash = "";
+    let newFileHash = hash || "";
+    $: if (hash !== undefined) {
+        newFileHash = hash;
+    }
     let newSourceUrl = "";
     let isAddingSource = false;
     let addError: string | null = null;
@@ -72,21 +76,23 @@
     {/if}
 
     <div class="space-y-4">
-        <div>
-            <Label for="file-hash">File Hash (Blake2b256)</Label>
-            <Input
-                type="text"
-                id="file-hash"
-                bind:value={newFileHash}
-                placeholder="64-character hexadecimal hash"
-                class="font-mono text-sm"
-                disabled={!hasProfile}
-            />
-            <p class="text-xs text-muted-foreground mt-1">
-                This is the unique identifier for the file. Users will search by
-                this hash.
-            </p>
-        </div>
+        {#if hash === undefined}
+            <div>
+                <Label for="file-hash">File Hash (Blake2b256)</Label>
+                <Input
+                    type="text"
+                    id="file-hash"
+                    bind:value={newFileHash}
+                    placeholder="64-character hexadecimal hash"
+                    class="font-mono text-sm"
+                    disabled={!hasProfile}
+                />
+                <p class="text-xs text-muted-foreground mt-1">
+                    This is the unique identifier for the file. Users will
+                    search by this hash.
+                </p>
+            </div>
+        {/if}
 
         <div>
             <Label for="source-url">Source URL</Label>

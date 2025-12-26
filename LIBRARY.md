@@ -55,6 +55,7 @@ Form for adding new file sources to the network.
 **Props:**
 - `profile: ReputationProof | null` - Current user's profile (required to enable adding)
 - `explorerUri: string` - Ergo Explorer API endpoint
+- `hash?: string` - Optional. If provided, the file hash input will be hidden and this value will be used.
 - `onSourceAdded?: (txId: string) => void` - Callback when source is added
 
 **Usage:**
@@ -64,11 +65,13 @@ Form for adding new file sources to the network.
   
   let profile = { ... }; // Load from fetchProfile
   let explorerUri = "https://api.ergoplatform.com";
+  let fileHash = "abc123..."; // Optional
 </script>
 
 <FileSourceCreation 
   {profile}
   {explorerUri}
+  hash={fileHash}
   onSourceAdded={(tx) => console.log('Source added:', tx)}
 />
 ```
