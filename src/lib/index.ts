@@ -55,21 +55,6 @@ export type {
     ApiBox
 } from './ergo/object';
 
-// ===== STORES =====
-export {
-    reputation_proof,
-    fileSources,
-    currentSearchHash,
-    invalidFileSources,
-    unavailableSources,
-    profileOpinions,
-    profileInvalidations,
-    profileUnavailabilities,
-    profileOpinionsGiven,
-    isLoading,
-    error
-} from './ergo/store';
-
 // ===== ENVIRONMENT CONSTANTS =====
 export {
     PROFILE_TYPE_NFT_ID,
@@ -78,10 +63,6 @@ export {
     INVALID_FILE_SOURCE_TYPE_NFT_ID,
     UNAVAILABLE_SOURCE_TYPE_NFT_ID,
     PROFILE_OPINION_TYPE_NFT_ID,
-    explorer_uri,
-    web_explorer_uri_tx,
-    web_explorer_uri_addr,
-    web_explorer_uri_tkn
 } from './ergo/envs';
 
 // ===== SVELTE COMPONENTS =====

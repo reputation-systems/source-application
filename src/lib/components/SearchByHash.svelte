@@ -9,7 +9,7 @@
         type InvalidFileSource,
         type UnavailableSource,
     } from "$lib/ergo/sourceObject";
-    import { type CachedData } from "$lib/ergo/store";
+    import { type CachedData } from "$lib/ergo/sourceObject";
     import { type ReputationProof } from "$lib/ergo/object";
     import { Button } from "$lib/components/ui/button/index.js";
     import { Input } from "$lib/components/ui/input/index.js";

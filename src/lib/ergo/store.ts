@@ -1,6 +1,7 @@
 import { writable } from 'svelte/store';
 import { type ReputationProof, type TypeNFT } from 'ergo-reputation-system';
-import { type FileSource, type InvalidFileSource, type UnavailableSource, type ProfileOpinion } from './sourceObject';
+import { type FileSource, type InvalidFileSource, type UnavailableSource, type ProfileOpinion, type CachedData } from './sourceObject';
+import { network_id } from './envs';
 
 export const address = writable<string | null>(null);
 export const network = writable<string | null>(null);
@@ -19,15 +20,39 @@ export const reputation_proof = writable<ReputationProof | null>(null);
 
 // --- SOURCE STORES ---
 
+const default_explorer_uri = (network_id == "mainnet") ? "https://api.ergoplatform.com" : "https://api-testnet.ergoplatform.com";
+const default_web_tx = (network_id == "mainnet") ? "https://sigmaspace.io/en/transaction/" : "https://testnet.ergoplatform.com/transactions/";
+const default_web_addr = (network_id == "mainnet") ? "https://sigmaspace.io/en/address/" : "https://testnet.ergoplatform.com/addresses/";
+const default_web_tkn = (network_id == "mainnet") ? "https://sigmaspace.io/en/token/" : "https://testnet.ergoplatform.com/tokens/";
+
+function createPersistedStringStore(key: string, startValue: string) {
+    const isBrowser = typeof window !== 'undefined';
+    let initial = startValue;
+
+    if (isBrowser) {
+        const stored = localStorage.getItem(key);
+        if (stored) initial = stored;
+    }
+
+    const { subscribe, set, update } = writable(initial);
+
+    return {
+        subscribe,
+        set: (value: string) => {
+            if (isBrowser) localStorage.setItem(key, value);
+            set(value);
+        },
+        update
+    };
+}
+
+export const explorer_uri = createPersistedStringStore('explorer_uri', default_explorer_uri);
+export const web_explorer_uri_tx = createPersistedStringStore('web_explorer_uri_tx', default_web_tx);
+export const web_explorer_uri_addr = createPersistedStringStore('web_explorer_uri_addr', default_web_addr);
+export const web_explorer_uri_tkn = createPersistedStringStore('web_explorer_uri_tkn', default_web_tkn);
+
 // --- CACHE CONFIGURATION ---
 export const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes in milliseconds
-
-export interface CachedData<T> {
-    [key: string]: {
-        data: T;
-        timestamp: number;
-    }
-}
 
 /**
  * Helper to create a writable store that persists to localStorage.

@@ -14,7 +14,7 @@
         ProfileOpinion,
     } from "$lib/ergo/sourceObject";
     import type { ReputationProof } from "$lib/ergo/object";
-    import type { CachedData } from "$lib/ergo/store";
+    import type { CachedData } from "$lib/ergo/sourceObject";
     import { FileSourceCard } from "$lib";
 
     export let connected = false;
@@ -305,8 +305,10 @@
                     <FileSourceCard
                         {source}
                         profile={reputationProof}
-                        invalidations={invalidFileSources[source.id]?.data || []}
-                        unavailabilities={unavailableSources[source.sourceUrl]?.data || []}
+                        invalidations={invalidFileSources[source.id]?.data ||
+                            []}
+                        unavailabilities={unavailableSources[source.sourceUrl]
+                            ?.data || []}
                         {explorerUri}
                         {webExplorerUriTx}
                         {webExplorerUriTkn}

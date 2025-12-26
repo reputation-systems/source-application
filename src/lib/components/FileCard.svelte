@@ -19,7 +19,7 @@
     import ProfileSourceGroup from "./ProfileSourceGroup.svelte";
     import Timeline from "./Timeline.svelte";
     import { type ReputationProof } from "$lib/ergo/object";
-    import { type CachedData } from "$lib/ergo/store";
+    import { type CachedData } from "$lib/ergo/sourceObject";
     import { Button } from "$lib/components/ui/button/index.js";
     import { Input } from "$lib/components/ui/input/index.js";
     import { Label } from "$lib/components/ui/label/index.js";

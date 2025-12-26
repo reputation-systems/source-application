@@ -19,15 +19,13 @@
 		profileUnavailabilities,
 		isLoading,
 		currentSearchHash,
-		error
-	} from "$lib/ergo/store";
-	import {
+		error,
 		explorer_uri,
 		web_explorer_uri_tx,
 		web_explorer_uri_addr,
 		web_explorer_uri_tkn,
-        PROFILE_TYPE_NFT_ID,
-	} from "$lib/ergo/envs";
+	} from "$lib/ergo/store";
+	import { PROFILE_TYPE_NFT_ID } from "$lib/ergo/envs";
 	import { User, Settings, Search, Plus, UserPlus } from "lucide-svelte";
 	import { get } from "svelte/store";
 	import SettingsModal from "$lib/components/SettingsModal.svelte";
@@ -155,8 +153,13 @@
 	async function loadUserProfile() {
 		try {
 			const types = await fetchTypeNfts(get(explorer_uri));
-			const proofs = await fetchAllProfiles(get(explorer_uri), true, [PROFILE_TYPE_NFT_ID], types);
-			const proof = proofs[0]  // TODO Select one.
+			const proofs = await fetchAllProfiles(
+				get(explorer_uri),
+				true,
+				[PROFILE_TYPE_NFT_ID],
+				types,
+			);
+			const proof = proofs[0]; // TODO Select one.
 			console.log("Fetched profile proof:", proof);
 			reputation_proof.set(proof);
 			console.log("Profile loaded:", proof);

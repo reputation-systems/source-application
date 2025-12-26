@@ -79,6 +79,13 @@ export interface ProfileData {
     opinionsGiven: ProfileOpinion[];
 }
 
+export interface CachedData<T> {
+    [key: string]: {
+        data: T;
+        timestamp: number;
+    }
+}
+
 // --- AGGREGATED DATA STRUCTURES ---
 
 /**

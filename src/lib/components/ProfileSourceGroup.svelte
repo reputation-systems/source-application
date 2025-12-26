@@ -4,7 +4,7 @@
         type InvalidFileSource,
         type UnavailableSource,
     } from "$lib/ergo/sourceObject";
-    import { type CachedData } from "$lib/ergo/store";
+    import { type CachedData } from "$lib/ergo/sourceObject";
     import * as jdenticon from "jdenticon";
     import { ExternalLink, ThumbsDown, CloudOff } from "lucide-svelte";
 

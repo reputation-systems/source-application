@@ -26,7 +26,8 @@ npm install source-application
 Profile creation and basic information display.
 
 **Props:**
-- `profile?: any` - Profile object (optional, uses store if not provided)
+- `profile: ReputationProof | null` - Current user's profile
+- `explorerUri: string` - Ergo Explorer API endpoint
 - `onProfileCreated?: (txId: string) => void` - Callback when profile is created
 
 **Usage:**
@@ -35,19 +36,15 @@ Profile creation and basic information display.
   import { ProfileCard } from 'source-application';
   
   let profile = null;
+  let explorerUri = "https://api.ergoplatform.com";
 </script>
 
 <ProfileCard 
   {profile}
+  {explorerUri}
   onProfileCreated={(tx) => console.log('Profile created:', tx)}
 />
 ```
-
-**Features:**
-- Shows profile token ID, owner address, and reputation amount
-- One-click profile creation if none exists
-- Copy to clipboard functionality
-- Works as standalone island component
 
 ---
 
@@ -56,7 +53,8 @@ Profile creation and basic information display.
 Form for adding new file sources to the network.
 
 **Props:**
-- `hasProfile: boolean` - Whether user has a profile (required)
+- `profile: ReputationProof | null` - Current user's profile (required to enable adding)
+- `explorerUri: string` - Ergo Explorer API endpoint
 - `onSourceAdded?: (txId: string) => void` - Callback when source is added
 
 **Usage:**
@@ -64,54 +62,56 @@ Form for adding new file sources to the network.
 <script>
   import { FileSourceCreation } from 'source-application';
   
-  let hasProfile = true;
+  let profile = { ... }; // Load from fetchProfile
+  let explorerUri = "https://api.ergoplatform.com";
 </script>
 
 <FileSourceCreation 
-  {hasProfile}
+  {profile}
+  {explorerUri}
   onSourceAdded={(tx) => console.log('Source added:', tx)}
 />
 ```
 
-**Features:**
-- File hash input (Blake2b256)
-- Source URL input (HTTP, IPFS, magnet links)
-- Security warnings
-- Error handling
-- Disabled state when no profile
-
 ---
 
-### FileSourceCard
+### FileCard
 
 Complete file source display for a specific file hash, including tabs for sources, profile views, and timeline.
 
 **Props:**
 - `fileHash: string` - The Blake2b256 hash of the file to display (required)
-- `profile?: ReputationProof | null` - The current user's profile (optional, for enabling actions)
+- `profile: ReputationProof | null` - The current user's profile (optional, for enabling actions)
+- `sources: FileSource[]` - List of sources for this hash
+- `invalidFileSources: CachedData<InvalidFileSource[]>` - Map of invalidations
+- `unavailableSources: CachedData<UnavailableSource[]>` - Map of unavailabilities
+- `isLoading: boolean` - Loading state
+- `explorerUri: string` - Ergo Explorer API endpoint
+- `webExplorerUriTkn: string` - Web explorer token link template
 - `class?: string` - CSS class for the container (optional)
 
 **Usage:**
 ```svelte
 <script>
-  import { FileSourceCard } from 'source-application';
+  import { FileCard } from 'source-application';
   
   let fileHash = "abc123...";
-  let profile = null; // Load from fetchProfile
+  let profile = null;
+  let explorerUri = "https://api.ergoplatform.com";
+  let webExplorerUriTkn = "https://sigmaspace.io/en/token/";
 </script>
 
-<FileSourceCard 
+<FileCard 
   {fileHash}
   {profile}
+  {explorerUri}
+  {webExplorerUriTkn}
+  sources={[]}
+  invalidFileSources={{}}
+  unavailableSources={{}}
+  isLoading={false}
 />
 ```
-
-**Features:**
-- Automatically fetches and displays sources for the given hash
-- Tabs: By Source, By Profile, Timeline
-- Aggregated statistics (Total Sources, etc.)
-- Full interaction support (Confirm, Invalidate, Unavailable)
-- Responsive design
 
 ---
 
@@ -119,23 +119,13 @@ Complete file source display for a specific file hash, including tabs for source
 
 ### Profile Functions
 
-#### fetchProfile
-Fetch user's reputation profile from the blockchain.
-
-```typescript
-import { fetchProfile } from 'source-application';
-
-const profile = await fetchProfile(ergo);
-// Returns: ReputationProof | null
-```
-
 #### createProfileBox
 Create a new reputation profile for the user.
 
 ```typescript
 import { createProfileBox } from 'source-application';
 
-const txId = await createProfileBox();
+const txId = await createProfileBox(explorerUri);
 // Returns: string (transaction ID)
 ```
 
@@ -149,7 +139,7 @@ Fetch all FILE_SOURCE boxes for a specific file hash.
 ```typescript
 import { fetchFileSourcesByHash } from 'source-application';
 
-const sources = await fetchFileSourcesByHash("abc123...");
+const sources = await fetchFileSourcesByHash("abc123...", explorerUri);
 // Returns: FileSource[]
 ```
 
@@ -159,18 +149,19 @@ Fetch all file sources created by a specific profile.
 ```typescript
 import { fetchFileSourcesByProfile } from 'source-application';
 
-const sources = await fetchFileSourcesByProfile(profileTokenId, 50);
+const sources = await fetchFileSourcesByProfile(profileTokenId, limit, explorerUri);
 // Returns: FileSource[]
 ```
 
 #### Other Fetch Functions
-- `fetchInvalidFileSources(sourceBoxId)` - Get invalidations for a source
-- `fetchUnavailableSources(sourceUrl)` - Get unavailability reports for a URL
-- `fetchProfileOpinions(profileTokenId)` - Get trust/distrust opinions for a profile
-- `fetchInvalidFileSourcesByProfile(profileTokenId)` - Get invalidations by profile
-- `fetchUnavailableSourcesByProfile(profileTokenId)` - Get unavailabilities by profile
-- `fetchProfileOpinionsByAuthor(authorTokenId)` - Get opinions given by a profile
-- `getTimestampFromBlockId(blockId)` - Get timestamp from block ID
+- `fetchInvalidFileSources(sourceBoxId, explorerUri)` - Get invalidations for a source
+- `fetchUnavailableSources(sourceUrl, explorerUri)` - Get unavailability reports for a URL
+- `fetchProfileOpinions(profileTokenId, explorerUri)` - Get trust/distrust opinions for a profile
+- `fetchInvalidFileSourcesByProfile(profileTokenId, limit, explorerUri)` - Get invalidations by profile
+- `fetchUnavailableSourcesByProfile(profileTokenId, limit, explorerUri)` - Get unavailabilities by profile
+- `fetchProfileOpinionsByAuthor(authorTokenId, explorerUri)` - Get opinions given by a profile
+- `searchByHash(fileHash, explorerUri)` - Load file sources, invalidations, and unavailabilities
+- `loadProfileData(profileTokenId, explorerUri)` - Load all data related to a profile
 
 ---
 
@@ -184,7 +175,9 @@ import { addFileSource } from 'source-application';
 
 const txId = await addFileSource(
   "abc123...", // file hash
-  "https://example.com/file.zip" // source URL
+  "https://example.com/file.zip", // source URL
+  profile, // ReputationProof
+  explorerUri
 );
 ```
 
@@ -196,7 +189,10 @@ import { confirmSource } from 'source-application';
 
 const txId = await confirmSource(
   "abc123...", // file hash
-  "https://example.com/file.zip" // source URL
+  "https://example.com/file.zip", // source URL
+  profile, // ReputationProof
+  currentSources, // FileSource[]
+  explorerUri
 );
 ```
 
@@ -206,7 +202,7 @@ Mark a file source as fake or incorrect.
 ```typescript
 import { markInvalidSource } from 'source-application';
 
-const txId = await markInvalidSource(sourceBoxId);
+const txId = await markInvalidSource(sourceBoxId, profile, explorerUri);
 ```
 
 #### markUnavailableSource
@@ -215,7 +211,7 @@ Mark a source URL as no longer available.
 ```typescript
 import { markUnavailableSource } from 'source-application';
 
-const txId = await markUnavailableSource("https://example.com/file.zip");
+const txId = await markUnavailableSource(sourceUrl, profile, explorerUri);
 ```
 
 #### updateFileSource
@@ -227,7 +223,9 @@ import { updateFileSource } from 'source-application';
 const txId = await updateFileSource(
   oldBoxId,
   fileHash,
-  newSourceUrl
+  newSourceUrl,
+  profile,
+  explorerUri
 );
 ```
 
@@ -237,51 +235,7 @@ Express trust or distrust for a profile.
 ```typescript
 import { trustProfile } from 'source-application';
 
-const txId = await trustProfile(profileTokenId, true); // true = trust, false = distrust
-```
-
----
-
-### Store Actions (Loading Data)
-
-#### searchByHash
-Load file sources into store by hash.
-
-```typescript
-import { searchByHash } from 'source-application';
-
-await searchByHash("abc123...");
-// Updates fileSources, invalidFileSources, unavailableSources stores
-```
-
-#### loadAllSources
-Load recent file sources into store.
-
-```typescript
-import { loadAllSources } from 'source-application';
-
-await loadAllSources();
-// Updates fileSources store
-```
-
-#### loadSourcesByProfile  [not implemented]
-Load all sources and opinions for a profile.
-
-```typescript
-import { loadSourcesByProfile } from 'source-application';
-
-await loadSourcesByProfile(profileTokenId);
-// Updates fileSources, profileInvalidations, profileUnavailabilities stores
-```
-
-#### loadProfileOpinions  [not implemented]
-Load trust/distrust opinions for a profile.
-
-```typescript
-import { loadProfileOpinions } from 'source-application';
-
-await loadProfileOpinions(profileTokenId);
-// Updates profileOpinions store
+const txId = await trustProfile(profileTokenId, isTrusted, profile, explorerUri);
 ```
 
 ---
@@ -351,82 +305,11 @@ import type {
   UnavailableSource,
   ProfileOpinion,
   ReputationProof,
-  RPBox
+  RPBox,
+  CachedData,
+  SearchResult,
+  ProfileData
 } from 'source-application';
-```
-
-**FileSource**
-```typescript
-interface FileSource {
-  id: string;              // Box ID
-  fileHash: string;        // Blake2b256 hash
-  sourceUrl: string;       // Download URL
-  ownerTokenId: string;    // Profile token ID
-  reputationAmount: number;
-  timestamp: number;
-  isLocked: boolean;
-  transactionId: string;
-}
-```
-
-**InvalidFileSource**
-```typescript
-interface InvalidFileSource {
-  id: string;
-  targetBoxId: string;     // Box being invalidated
-  authorTokenId: string;
-  reputationAmount: number;
-  timestamp: number;
-  transactionId: string;
-}
-```
-
-**UnavailableSource**
-```typescript
-interface UnavailableSource {
-  id: string;
-  sourceUrl: string;       // URL being marked unavailable
-  authorTokenId: string;
-  reputationAmount: number;
-  timestamp: number;
-  transactionId: string;
-}
-```
-
-**ProfileOpinion**
-```typescript
-interface ProfileOpinion {
-  id: string;
-  targetProfileTokenId: string;
-  isTrusted: boolean;      // true = trust, false = distrust
-  authorTokenId: string;
-  reputationAmount: number;
-  timestamp: number;
-  transactionId: string;
-}
-```
-
----
-
-## Svelte Stores
-
-All stores are reactive and can be subscribed to in Svelte applications.
-
-```typescript
-import {
-  reputation_proof,       // Current user's profile
-  fileSources,           // Cached file sources
-  currentSearchHash,     // Currently searched hash
-  invalidFileSources,    // Cached invalidations
-  unavailableSources,    // Cached unavailabilities
-  profileOpinions,       // Cached profile opinions
-  isLoading,             // Loading state
-  error                  // Error messages
-} from 'source-application';
-
-// Usage in Svelte
-$: profile = $reputation_proof;
-$: sources = $fileSources;
 ```
 
 ---
@@ -440,74 +323,18 @@ import {
   INVALID_FILE_SOURCE_TYPE_NFT_ID,
   UNAVAILABLE_SOURCE_TYPE_NFT_ID,
   PROFILE_OPINION_TYPE_NFT_ID,
-  PROFILE_TOTAL_SUPPLY,
-  explorer_uri,              // Writable store
-  web_explorer_uri_tx,       // Writable store
-  web_explorer_uri_addr,     // Writable store
-  web_explorer_uri_tkn       // Writable store
+  PROFILE_TOTAL_SUPPLY
 } from 'source-application';
-
-// Customize explorer URIs
-explorer_uri.set('https://api.ergoplatform.com');
-```
-
----
-
-## Complete Example
-
-```svelte
-<script>
-  import {
-    ProfileCard,
-    FileSourceCreation,
-    FileSourceCard,
-    fetchProfile,
-    reputation_proof
-  } from 'source-application';
-  
-  let ergo; // Wallet connector
-  let fileHash = "";
-  
-  // Load profile
-  async function loadProfile() {
-    if (ergo) {
-      await fetchProfile(ergo);
-    }
-  }
-  
-  $: profile = $reputation_proof;
-</script>
-
-<!-- Profile Management -->
-<ProfileCard {profile} />
-
-<!-- Add New Source -->
-{#if profile}
-  <FileSourceCreation hasProfile={true} />
-{/if}
-
-<!-- Search & Display Results -->
-<div class="my-4">
-  <input bind:value={fileHash} placeholder="Enter file hash" />
-</div>
-
-{#if fileHash}
-  <FileSourceCard
-    {fileHash}
-    {profile}
-  />
-{/if}
 ```
 
 ---
 
 ## Notes
 
-- All blockchain interactions require an Ergo wallet connection
-- Functions return transaction IDs that can be tracked on the blockchain
-- Stores use caching with configurable duration (default: 5 minutes)
-- Components are self-contained and work as standalone islands
-- All URLs are sanitized for security
+- All blockchain interactions require an Ergo wallet connection.
+- The library does not include internal stores; state management should be handled by the consuming application.
+- Components are self-contained and receive data via props.
+- All URLs are sanitized for security.
 
 ## License
 
