@@ -12,7 +12,14 @@ export default defineConfig({
     		alias: {
       			$lib: path.resolve("./src/lib"),
     		},
-  	}
+  	},
+	optimizeDeps: {
+		esbuildOptions: {
+			loader: {
+				'.es': 'text',
+			},
+		},
+	},
 });
 
 const config = {
