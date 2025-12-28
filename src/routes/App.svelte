@@ -27,7 +27,7 @@
 	} from "$lib/ergo/store";
 	import { PROFILE_TYPE_NFT_ID } from "$lib/ergo/envs";
 	import { User, Settings, Search, Plus, UserPlus } from "lucide-svelte";
-	import { get } from "svelte/store";
+	import { get, writable } from "svelte/store";
 	import SettingsModal from "$lib/components/SettingsModal.svelte";
 	import ProfileModal from "$lib/components/ProfileModal.svelte";
 	import { fetchAllProfiles, fetchTypeNfts } from "ergo-reputation-system";
@@ -49,6 +49,7 @@
 	let activeTab: "profile" | "search" | "add" = "profile";
 	let isCreatingProfile = false;
 	let addError: string | null = null;
+	let creationHashStore = writable("");
 
 	$: hasProfile =
 		$reputation_proof !== null &&
@@ -490,7 +491,22 @@
 			<FileSourceCreation
 				profile={$reputation_proof}
 				explorerUri={$explorer_uri}
+				hash={creationHashStore}
 			/>
+			{#if $creationHashStore}
+				<div
+					class="mt-4 p-3 bg-muted rounded-md border border-dashed text-center"
+				>
+					<p
+						class="text-xs text-muted-foreground uppercase tracking-wider font-semibold mb-1"
+					>
+						Calculated Hash (Synced with Parent)
+					</p>
+					<code class="text-sm font-mono break-all"
+						>{$creationHashStore}</code
+					>
+				</div>
+			{/if}
 		{/if}
 	</div>
 </main>
