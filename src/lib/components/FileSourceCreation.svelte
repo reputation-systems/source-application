@@ -33,14 +33,11 @@
     let urlMismatch = false;
 
     // Reactive value for the current hash from the store
-    $: currentHashValue = hash ? $hash : "";
-    $: isHashFixed =
-        currentHashValue !== undefined &&
-        currentHashValue !== null &&
-        currentHashValue !== "";
+    $: currentHashValue = (hash ? $hash : "") || "";
+    $: isHashFixed = currentHashValue !== "";
 
     // Sync newFileHash with store
-    $: if (hash) {
+    $: if (hash && $hash) {
         newFileHash = $hash;
     }
 

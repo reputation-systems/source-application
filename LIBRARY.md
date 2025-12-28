@@ -50,28 +50,47 @@ Profile creation and basic information display.
 
 ### FileSourceCreation
 
-Form for adding new file sources to the network.
+Form for adding new file sources to the network. It supports two modes: a "free" mode where the user provides the hash, and a "fixed" mode where the hash is pre-defined and the component validates the provided URL.
 
 **Props:**
-- `profile: ReputationProof | null` - Current user's profile (required to enable adding)
-- `explorerUri: string` - Ergo Explorer API endpoint
-- `hash?: string` - Optional. If provided, the file hash input will be hidden and this value will be used.
-- `onSourceAdded?: (txId: string) => void` - Callback when source is added
+- `profile: ReputationProof | null` - Current user's profile (required to enable adding).
+- `explorerUri: string` - Ergo Explorer API endpoint.
+- `hash?: Writable<string>` - Optional. A Svelte writable store for the file hash.
+- `title?: string` - Optional. Custom title for the component (default: "Add New File Source").
+- `onSourceAdded?: (txId: string) => void` - Callback when source is added.
+
+**Behavior:**
+- **Always Visible**: The current hash is always displayed at the top of the component.
+- **Fixed Hash Mode** (when `hash` store has a value):
+    - Manual hash input and file upload fields are hidden.
+    - The "Compute hash from URL" button is hidden.
+    - When clicking "Add Source", the component automatically downloads the file from the URL, calculates its hash, and verifies it matches the fixed hash before proceeding.
+- **Free Mode** (when `hash` store is empty or undefined):
+    - User can provide the hash manually.
+    - User can upload a local file to calculate its hash.
+    - User can provide a URL and click the download icon to calculate the hash from the remote file.
 
 **Usage:**
 ```svelte
 <script>
   import { FileSourceCreation } from 'source-application';
+  import { writable } from 'svelte/store';
   
   let profile = { ... }; // Load from fetchProfile
   let explorerUri = "https://api.ergoplatform.com";
-  let fileHash = "abc123..."; // Optional
+  
+  // Fixed mode
+  let fileHashStore = writable("abc123..."); 
+  
+  // Free mode
+  // let fileHashStore = writable("");
 </script>
 
 <FileSourceCreation 
   {profile}
   {explorerUri}
-  hash={fileHash}
+  hash={fileHashStore}
+  title="Add Download Link"
   onSourceAdded={(tx) => console.log('Source added:', tx)}
 />
 ```
