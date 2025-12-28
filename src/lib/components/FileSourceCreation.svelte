@@ -8,7 +8,7 @@
     import { type ReputationProof } from "$lib/ergo/object";
     import { blake2b256 } from "@fleet-sdk/crypto";
     import { uint8ArrayToHex } from "$lib/ergo/utils";
-    import { get, type Writable } from "svelte/store";
+    import { type Writable } from "svelte/store";
 
     // Props for island mode
     export let profile: ReputationProof | null = null;
@@ -16,6 +16,7 @@
     export let onSourceAdded: ((txId: string) => void) | null = null;
     export let hash: Writable<string> | undefined = undefined;
 
+    export let title: string = "Add New File Source";
     let className: string = "";
     export { className as class };
 
@@ -29,10 +30,22 @@
 
     let isCalculatingHash = false;
     let hashError: string | null = null;
+    let urlMismatch = false;
 
-    // Sync newFileHash with store if provided
+    // Reactive value for the current hash from the store
+    $: currentHashValue = hash ? $hash : "";
+    $: isHashFixed =
+        currentHashValue !== undefined &&
+        currentHashValue !== null &&
+        currentHashValue !== "";
+
+    // Sync newFileHash with store
     $: if (hash) {
-        newFileHash = get(hash);
+        newFileHash = $hash;
+    }
+
+    $: if (newSourceUrl) {
+        urlMismatch = false;
     }
 
     function updateHash(val: string) {
@@ -47,14 +60,21 @@
 
         isCalculatingHash = true;
         hashError = null;
+        urlMismatch = false;
         try {
             const response = await fetch(newSourceUrl.trim());
             if (!response.ok)
                 throw new Error(`Failed to fetch file: ${response.statusText}`);
             const buffer = await response.arrayBuffer();
             const bytes = new Uint8Array(buffer);
-            const hashResult = blake2b256(bytes);
-            updateHash(uint8ArrayToHex(hashResult));
+            const hashResult = uint8ArrayToHex(blake2b256(bytes));
+
+            if (isHashFixed && hashResult !== currentHashValue) {
+                urlMismatch = true;
+                hashError = `Calculated hash (${hashResult}) does not match the expected hash (${currentHashValue})`;
+            } else {
+                updateHash(hashResult);
+            }
         } catch (err: any) {
             console.error("Error calculating hash from URL:", err);
             hashError = err?.message || "Failed to calculate hash from URL";
@@ -85,7 +105,45 @@
     }
 
     async function handleAddSource() {
-        if (!newFileHash.trim() || !newSourceUrl.trim() || !profile) return;
+        if (!newSourceUrl.trim() || !profile) return;
+
+        // If hash is fixed but not yet validated (or mismatch), we should validate it now
+        if (isHashFixed && !urlMismatch && newFileHash !== currentHashValue) {
+            // This case shouldn't happen if sync is working, but let's be safe
+            newFileHash = currentHashValue;
+        }
+
+        // If it's fixed, we MUST validate the URL content before adding
+        if (isHashFixed) {
+            isCalculatingHash = true;
+            hashError = null;
+            try {
+                const response = await fetch(newSourceUrl.trim());
+                if (!response.ok)
+                    throw new Error(
+                        `Failed to fetch file: ${response.statusText}`,
+                    );
+                const buffer = await response.arrayBuffer();
+                const bytes = new Uint8Array(buffer);
+                const hashResult = uint8ArrayToHex(blake2b256(bytes));
+
+                if (hashResult !== currentHashValue) {
+                    urlMismatch = true;
+                    hashError = `Calculated hash (${hashResult}) does not match the expected hash (${currentHashValue})`;
+                    isCalculatingHash = false;
+                    return;
+                }
+            } catch (err: any) {
+                console.error("Error validating URL:", err);
+                hashError = err?.message || "Failed to validate URL";
+                isCalculatingHash = false;
+                return;
+            } finally {
+                isCalculatingHash = false;
+            }
+        }
+
+        if (!newFileHash.trim() || urlMismatch) return;
 
         isAddingSource = true;
         addError = null;
@@ -97,7 +155,9 @@
                 explorerUri,
             );
             console.log("Source added, tx:", tx);
-            updateHash("");
+            if (!isHashFixed) {
+                updateHash("");
+            }
             newSourceUrl = "";
 
             if (onSourceAdded) {
@@ -113,7 +173,19 @@
 </script>
 
 <div class="{baseClasses} {className}">
-    <h3 class="text-xl font-semibold mb-4">Add New File Source</h3>
+    <h3 class="text-xl font-semibold mb-1">{title}</h3>
+    <div class="mb-4">
+        {#if newFileHash}
+            <div class="text-xs font-mono text-muted-foreground break-all">
+                <span class="font-semibold text-primary/70">Hash:</span>
+                {newFileHash}
+            </div>
+        {:else}
+            <div class="text-xs text-muted-foreground italic">
+                No hash selected
+            </div>
+        {/if}
+    </div>
 
     <div
         class="bg-amber-500/10 border border-amber-500/20 p-3 rounded-lg mb-4 flex gap-2"
@@ -144,76 +216,80 @@
                     class="font-mono text-sm"
                     disabled={!hasProfile || isCalculatingHash}
                 />
-                <Button
-                    variant="outline"
-                    size="icon"
-                    class="flex-shrink-0 h-auto"
-                    on:click={calculateHashFromUrl}
-                    disabled={!hasProfile ||
-                        isCalculatingHash ||
-                        !newSourceUrl.trim()}
-                    title="Calculate hash from URL"
-                >
-                    {#if isCalculatingHash}
-                        <Loader2 class="w-4 h-4 animate-spin" />
-                    {:else}
-                        <Download class="w-4 h-4" />
-                    {/if}
-                </Button>
+                {#if !isHashFixed}
+                    <Button
+                        variant="outline"
+                        size="icon"
+                        class="flex-shrink-0 h-auto"
+                        on:click={calculateHashFromUrl}
+                        disabled={!hasProfile ||
+                            isCalculatingHash ||
+                            !newSourceUrl.trim()}
+                        title="Calculate hash from URL"
+                    >
+                        {#if isCalculatingHash}
+                            <Loader2 class="w-4 h-4 animate-spin" />
+                        {:else}
+                            <Download class="w-4 h-4" />
+                        {/if}
+                    </Button>
+                {/if}
             </div>
             <p class="text-xs text-muted-foreground mt-1">
                 HTTP(S) URL, IPFS CID, Magnet link, or any download source.
             </p>
         </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-                <Label for="file-hash">File Hash (Blake2b256)</Label>
-                <Input
-                    type="text"
-                    id="file-hash"
-                    value={newFileHash}
-                    on:input={(e) => updateHash(e.currentTarget.value)}
-                    placeholder="64-character hexadecimal hash"
-                    class="font-mono text-sm"
-                    disabled={!hasProfile || isCalculatingHash}
-                />
-                <p class="text-xs text-muted-foreground mt-1">
-                    Unique identifier for the file.
-                </p>
-            </div>
-
-            <div>
-                <Label>Upload File to Hash</Label>
-                <div class="relative">
-                    <input
-                        type="file"
-                        id="file-upload"
-                        class="hidden"
-                        on:change={handleFileUpload}
+        {#if !isHashFixed}
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <Label for="file-hash">File Hash (Blake2b256)</Label>
+                    <Input
+                        type="text"
+                        id="file-hash"
+                        value={newFileHash}
+                        on:input={(e) => updateHash(e.currentTarget.value)}
+                        placeholder="64-character hexadecimal hash"
+                        class="font-mono text-sm"
                         disabled={!hasProfile || isCalculatingHash}
                     />
-                    <Button
-                        variant="outline"
-                        class="w-full"
-                        on:click={() =>
-                            document.getElementById("file-upload")?.click()}
-                        disabled={!hasProfile || isCalculatingHash}
-                    >
-                        {#if isCalculatingHash}
-                            <Loader2 class="w-4 h-4 mr-2 animate-spin" />
-                            Calculating...
-                        {:else}
-                            <Upload class="w-4 h-4 mr-2" />
-                            Select File
-                        {/if}
-                    </Button>
+                    <p class="text-xs text-muted-foreground mt-1">
+                        Unique identifier for the file.
+                    </p>
                 </div>
-                <p class="text-xs text-muted-foreground mt-1">
-                    Calculate hash from a local file.
-                </p>
+
+                <div>
+                    <Label>Upload File to Hash</Label>
+                    <div class="relative">
+                        <input
+                            type="file"
+                            id="file-upload"
+                            class="hidden"
+                            on:change={handleFileUpload}
+                            disabled={!hasProfile || isCalculatingHash}
+                        />
+                        <Button
+                            variant="outline"
+                            class="w-full"
+                            on:click={() =>
+                                document.getElementById("file-upload")?.click()}
+                            disabled={!hasProfile || isCalculatingHash}
+                        >
+                            {#if isCalculatingHash}
+                                <Loader2 class="w-4 h-4 mr-2 animate-spin" />
+                                Calculating...
+                            {:else}
+                                <Upload class="w-4 h-4 mr-2" />
+                                Select File
+                            {/if}
+                        </Button>
+                    </div>
+                    <p class="text-xs text-muted-foreground mt-1">
+                        Calculate hash from a local file.
+                    </p>
+                </div>
             </div>
-        </div>
+        {/if}
 
         <Button
             on:click={handleAddSource}
@@ -224,7 +300,15 @@
                 !newSourceUrl.trim()}
             class="w-full"
         >
-            {isAddingSource ? "Adding Source..." : "Add Source"}
+            {#if isAddingSource}
+                <Loader2 class="w-4 h-4 mr-2 animate-spin inline" />
+                Adding Source...
+            {:else if isCalculatingHash}
+                <Loader2 class="w-4 h-4 mr-2 animate-spin inline" />
+                Validating URL...
+            {:else}
+                Add Source
+            {/if}
         </Button>
     </div>
 </div>
