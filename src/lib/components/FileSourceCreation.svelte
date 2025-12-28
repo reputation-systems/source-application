@@ -197,7 +197,9 @@
 
     {#if addError || hashError}
         <div class="bg-red-500/10 border border-red-500/20 p-3 rounded-lg mb-4">
-            <p class="text-sm text-red-200">{addError || hashError}</p>
+            <p class="text-sm text-red-200 break-all">
+                {addError || hashError}
+            </p>
         </div>
     {/if}
 
