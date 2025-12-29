@@ -1,5 +1,5 @@
 import { writable } from 'svelte/store';
-import { type ReputationProof, type TypeNFT } from 'ergo-reputation-system';
+import { type ReputationProof, type TypeNFT } from 'reputation-system';
 import { type FileSource, type InvalidFileSource, type UnavailableSource, type ProfileOpinion, type CachedData } from './sourceObject';
 import { network_id } from './envs';
 

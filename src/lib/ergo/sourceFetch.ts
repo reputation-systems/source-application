@@ -15,7 +15,7 @@ import {
 } from './envs';
 import DOMPurify from "dompurify";
 import { type ApiBox } from './object';
-import { getTimestampFromBlockId, searchBoxes } from 'ergo-reputation-system';
+import { getTimestampFromBlockId, searchBoxes } from 'reputation-system';
 
 
 /**

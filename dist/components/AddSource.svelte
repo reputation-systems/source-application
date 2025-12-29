@@ -1,0 +1,97 @@
+<script>import { addFileSource } from "../ergo/sourceStore";
+import { Button } from "./ui/button/index.js";
+import { Input } from "./ui/input/index.js";
+import { Label } from "./ui/label/index.js";
+import { Textarea } from "./ui/textarea";
+import { AlertTriangle } from "lucide-svelte";
+export let hasProfile = false;
+let newFileHash = "";
+let newSourceUrl = "";
+let isAddingSource = false;
+let addError = null;
+async function handleAddSource() {
+  if (!newFileHash.trim() || !newSourceUrl.trim())
+    return;
+  isAddingSource = true;
+  addError = null;
+  try {
+    const tx = await addFileSource(
+      newFileHash.trim(),
+      newSourceUrl.trim()
+    );
+    console.log("Source added, tx:", tx);
+    newFileHash = "";
+    newSourceUrl = "";
+  } catch (err) {
+    console.error("Error adding source:", err);
+    addError = err?.message || "Failed to add source";
+  } finally {
+    isAddingSource = false;
+  }
+}
+</script>
+
+<div class="bg-card p-6 rounded-lg border mb-6">
+    <h3 class="text-xl font-semibold mb-4">Add New File Source</h3>
+
+    <div
+        class="bg-amber-500/10 border border-amber-500/20 p-3 rounded-lg mb-4 flex gap-2"
+    >
+        <AlertTriangle class="w-5 h-5 text-amber-400 flex-shrink-0 mt-0.5" />
+        <div class="text-sm text-amber-200">
+            <strong>Security Warning:</strong> Always verify URLs before downloading.
+            Malicious actors may post harmful links. The URL you provide will be
+            publicly visible and immutable on the blockchain.
+        </div>
+    </div>
+
+    {#if addError}
+        <div class="bg-red-500/10 border border-red-500/20 p-3 rounded-lg mb-4">
+            <p class="text-sm text-red-200">{addError}</p>
+        </div>
+    {/if}
+
+    <div class="space-y-4">
+        <div>
+            <Label for="file-hash">File Hash (Blake2b256)</Label>
+            <Input
+                type="text"
+                id="file-hash"
+                bind:value={newFileHash}
+                placeholder="64-character hexadecimal hash"
+                class="font-mono text-sm"
+                disabled={!hasProfile}
+            />
+            <p class="text-xs text-muted-foreground mt-1">
+                This is the unique identifier for the file. Users will search by
+                this hash.
+            </p>
+        </div>
+
+        <div>
+            <Label for="source-url">Source URL</Label>
+            <Textarea
+                id="source-url"
+                bind:value={newSourceUrl}
+                placeholder="https://example.com/file.zip or ipfs://... or magnet:..."
+                rows="2"
+                class="font-mono text-sm"
+                disabled={!hasProfile}
+            />
+            <p class="text-xs text-muted-foreground mt-1">
+                HTTP(S) URL, IPFS CID, Magnet link, or any download source.
+            </p>
+        </div>
+
+        <Button
+            on:click={handleAddSource}
+            disabled={isAddingSource ||
+                !hasProfile ||
+                !newFileHash.trim() ||
+                !newSourceUrl.trim()}
+            class="w-full"
+        >
+            {isAddingSource ? "Adding Source..." : "Add Source"}
+        </Button>
+    </div>
+</div>

@@ -1,5 +1,5 @@
-import { create_profile, create_opinion, update_opinion, remove_opinion } from 'ergo-reputation-system';
-import { type RPBox, type ReputationProof } from 'ergo-reputation-system';
+import { create_profile, create_opinion, update_opinion, remove_opinion } from 'reputation-system';
+import { type RPBox, type ReputationProof } from 'reputation-system';
 import { type FileSource } from './sourceObject';
 import {
     FILE_SOURCE_TYPE_NFT_ID,

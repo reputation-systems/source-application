@@ -1,0 +1,12 @@
+export declare const network_id: "mainnet" | "testnet";
+export declare const explorer_uri: string;
+export declare const web_explorer_uri_tx: string;
+export declare const web_explorer_uri_addr: string;
+export declare const web_explorer_uri_tkn: string;
+export declare const PROFILE_TYPE_NFT_ID = "1820fd428a0b92d61ce3f86cd98240fdeeee8a392900f0b19a2e017d66f79926";
+export declare const PROFILE_TOTAL_SUPPLY = 99999999;
+export declare const FILE_SOURCE_TYPE_NFT_ID = "8299d98e15ebee7fa39ad716de7c8bb191790a1bf4b7c3f91af35a0e36187706";
+export declare const INVALID_FILE_SOURCE_TYPE_NFT_ID = "0000000000000000000000000000000000000000000000000000000000000002";
+export declare const UNAVAILABLE_SOURCE_TYPE_NFT_ID = "0000000000000000000000000000000000000000000000000000000000000003";
+export declare const PROFILE_OPINION_TYPE_NFT_ID = "0000000000000000000000000000000000000000000000000000000000000004";
+export declare const SOURCE_OPINION_TYPE_NFT_ID = "0000000000000000000000000000000000000000000000000000000000000005";
