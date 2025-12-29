@@ -30,7 +30,7 @@
 	import { get, writable } from "svelte/store";
 	import SettingsModal from "$lib/components/SettingsModal.svelte";
 	import ProfileModal from "$lib/components/ProfileModal.svelte";
-	import { fetchAllProfiles, fetchTypeNfts } from "ergo-reputation-system";
+	import { fetchAllUserProfiles, fetchTypeNfts } from "ergo-reputation-system";
 	import { createProfileBox } from "$lib/ergo/sourceStore";
 	import { searchByHash, loadProfileData } from "$lib/ergo/sourceFetch";
 	import ProfileSources from "$lib/components/ProfileSources.svelte";
@@ -154,7 +154,7 @@
 	async function loadUserProfile() {
 		try {
 			const types = await fetchTypeNfts(get(explorer_uri));
-			const proofs = await fetchAllProfiles(
+			const proofs = await fetchAllUserProfiles(
 				get(explorer_uri),
 				true,
 				[PROFILE_TYPE_NFT_ID],
