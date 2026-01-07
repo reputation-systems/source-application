@@ -16,7 +16,7 @@ import {
  */
 function getMainProfileBox(proof: ReputationProof | null): RPBox | null {
     if (!proof) return null;
-    return proof.current_boxes.find((b: RPBox) => b.type.tokenId === PROFILE_TYPE_NFT_ID) || null;
+    return proof.current_boxes.find((b: RPBox) => b.object_pointer === proof.token_id) || null;
 }
 
 // --- PROFILE MANAGEMENT ---
@@ -51,6 +51,10 @@ export async function addFileSource(fileHash: string, sourceUrl: string, proof: 
     console.log("API: addFileSource", { fileHash, sourceUrl });
 
     console.log("Proof:", proof);
+
+    if (!proof) {
+        throw new Error("Reputation proof is required to add a file source.");
+    }
 
     const mainBox = getMainProfileBox(proof);
     console.log("Opinion box (profile):", mainBox);
