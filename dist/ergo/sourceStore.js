@@ -7,7 +7,7 @@ import { FILE_SOURCE_TYPE_NFT_ID, INVALID_FILE_SOURCE_TYPE_NFT_ID, UNAVAILABLE_S
 function getMainProfileBox(proof) {
     if (!proof)
         return null;
-    return proof.current_boxes.find((b) => b.type.tokenId === PROFILE_TYPE_NFT_ID) || null;
+    return proof.current_boxes.find((b) => b.object_pointer === proof.token_id) || null;
 }
 // --- PROFILE MANAGEMENT ---
 /**
@@ -28,6 +28,9 @@ export async function createProfileBox(explorerUri) {
 export async function addFileSource(fileHash, sourceUrl, proof, explorerUri) {
     console.log("API: addFileSource", { fileHash, sourceUrl });
     console.log("Proof:", proof);
+    if (!proof) {
+        throw new Error("Reputation proof is required to add a file source.");
+    }
     const mainBox = getMainProfileBox(proof);
     console.log("Opinion box (profile):", mainBox);
     if (!mainBox) {
