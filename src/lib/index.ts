@@ -75,8 +75,22 @@ export {
     hashValidationEnabled
 } from './ergo/store';
 
+// ===== HASH UTILITIES =====
+export {
+    HASH_OPTIONS,
+    SEARCH_HASH_ALGORITHMS
+} from './ergo/hashUtils';
+
 // ===== SVELTE COMPONENTS =====
 export { default as ProfileCard } from './components/ProfileCard.svelte';
 export { default as FileSourceCreation } from './components/FileSourceCreation.svelte';
 export { default as FileSourceCard } from './components/FileSourceCard.svelte';
 export { default as FileCard } from './components/FileCard.svelte';
+export { default as SearchByHash } from './components/SearchByHash.svelte';
+export { default as ProfileSources } from './components/ProfileSources.svelte';
+export { default as DownloadSourceCard } from './components/DownloadSourceCard.svelte';
+export { default as ProfileSourceGroupView } from './components/ProfileSourceGroup.svelte';
+export { default as Timeline } from './components/Timeline.svelte';
+export { default as SettingsModal } from './components/SettingsModal.svelte';
+export { default as ProfileModal } from './components/ProfileModal.svelte';
+export { default as AddSource } from './components/AddSource.svelte';
