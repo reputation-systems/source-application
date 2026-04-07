@@ -1,7 +1,7 @@
 import { type FileSource, type ProfileOpinion, type SearchResult, type ProfileData, type InvalidFileSource, type UnavailableSource } from './sourceObject';
 /**
  * Fetch all FILE_SOURCE boxes for a specific file hash.
- * Returns all sources (URLs) where this file can be found.
+ * Returns all sources where this file can be found.
  */
 export declare function fetchFileSourcesByHash(fileHash: string, explorerUri: string): Promise<FileSource[]>;
 /**

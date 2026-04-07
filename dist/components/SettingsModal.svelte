@@ -7,6 +7,7 @@ export let explorerUri;
 export let webTx;
 export let webAddr;
 export let webTkn;
+export let hashValidation = false;
 export let onSave;
 const DEFAULTS = {
   api: "https://api.ergoplatform.com",
@@ -18,12 +19,14 @@ let localExplorerUri = explorerUri;
 let localWebTx = webTx;
 let localWebAddr = webAddr;
 let localWebTkn = webTkn;
+let localHashValidation = hashValidation;
 $:
   if (show) {
     localExplorerUri = explorerUri;
     localWebTx = webTx;
     localWebAddr = webAddr;
     localWebTkn = webTkn;
+    localHashValidation = hashValidation;
   }
 function close() {
   show = false;
@@ -33,7 +36,8 @@ function handleSave() {
     explorerUri: localExplorerUri,
     webTx: localWebTx,
     webAddr: localWebAddr,
-    webTkn: localWebTkn
+    webTkn: localWebTkn,
+    hashValidation: localHashValidation
   });
   close();
 }
@@ -42,6 +46,7 @@ function restoreDefaults() {
   localWebTx = DEFAULTS.tx;
   localWebAddr = DEFAULTS.addr;
   localWebTkn = DEFAULTS.tkn;
+  localHashValidation = false;
 }
 </script>
 
@@ -106,6 +111,26 @@ function restoreDefaults() {
                 <p class="text-xs text-muted-foreground">
                     URL prefix for viewing tokens.
                 </p>
+            </div>
+
+            <div class="border-t border-border pt-4 mt-4">
+                <h3 class="text-sm font-semibold mb-3">Verification</h3>
+                <div class="flex items-start gap-3">
+                    <input
+                        type="checkbox"
+                        id="hash-validation"
+                        bind:checked={localHashValidation}
+                        class="mt-1 rounded border-input"
+                    />
+                    <div>
+                        <Label for="hash-validation" class="cursor-pointer">Enable hash content validation</Label>
+                        <p class="text-xs text-muted-foreground mt-1">
+                            When enabled, adding a source will download the file from the URL
+                            and verify its hash matches before submitting the transaction.
+                            This may cause issues with large files or CORS-restricted URLs.
+                        </p>
+                    </div>
+                </div>
             </div>
         </div>
 

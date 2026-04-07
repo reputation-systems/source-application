@@ -1,7 +1,8 @@
 <script>import { addFileSource } from "../ergo/sourceStore";
 import {
   groupByDownloadSource,
-  groupByProfile
+  groupByProfile,
+  getPrimaryUrl
 } from "../ergo/sourceObject";
 import {
   LayoutGrid,
@@ -53,6 +54,7 @@ $:
   timelineEvents = (() => {
     const events = [];
     for (const source of sources) {
+      const primaryUrl = getPrimaryUrl(source);
       events.push({
         timestamp: source.timestamp,
         type: "FILE_SOURCE",
@@ -60,13 +62,14 @@ $:
         color: "#22c55e",
         // green-500
         authorTokenId: source.ownerTokenId,
-        data: { sourceUrl: source.sourceUrl }
+        data: { sourceUrl: primaryUrl }
       });
     }
     for (const boxId in invalidFileSources) {
       const invs = invalidFileSources[boxId]?.data || [];
       const targetSource = sources.find((s) => s.id === boxId);
       if (targetSource) {
+        const targetPrimaryUrl = getPrimaryUrl(targetSource);
         for (const inv of invs) {
           events.push({
             timestamp: inv.timestamp,
@@ -75,14 +78,14 @@ $:
             color: "#ef4444",
             // red-500
             authorTokenId: inv.authorTokenId,
-            data: { sourceUrl: targetSource.sourceUrl }
+            data: { sourceUrl: targetPrimaryUrl }
           });
         }
       }
     }
     for (const url in unavailableSources) {
       const unavs = unavailableSources[url]?.data || [];
-      if (sources.some((s) => s.sourceUrl === url)) {
+      if (sources.some((s) => s.source?.urlLink === url)) {
         for (const unav of unavs) {
           events.push({
             timestamp: unav.timestamp,
@@ -104,9 +107,18 @@ async function handleAddSource() {
   isAddingSource = true;
   addError = null;
   try {
+    const entry = {
+      hashFunctionId: "",
+      contentFormat: "",
+      contentHash: "",
+      rawFormat: "",
+      urlLink: newSourceUrl.trim()
+    };
     const tx = await addFileSource(
       fileHash.trim(),
-      newSourceUrl.trim(),
+      "",
+      // hashFunctionId
+      entry,
       profile,
       explorerUri
     );
@@ -151,7 +163,7 @@ async function handleAddSource() {
                 <h4 class="font-semibold mb-6 text-lg">Add First Source</h4>
 
                 <div
-                    class="text-xs text-amber-500/80 mb-6 flex gap-2 items-start"
+                    class="text-xs text-amber-800 dark:text-amber-500/80 mb-6 flex gap-2 items-start"
                 >
                     <AlertTriangle class="w-4 h-4 flex-shrink-0 mt-0.5" />
                     <p>
@@ -162,9 +174,9 @@ async function handleAddSource() {
 
                 {#if addError}
                     <div
-                        class="bg-red-500/10 border border-red-500/20 p-3 rounded-lg mb-4"
+                        class="bg-red-500/10 border border-red-600 dark:border-red-500/20 p-3 rounded-lg mb-4"
                     >
-                        <p class="text-xs text-red-200">{addError}</p>
+                        <p class="text-xs text-red-800 dark:text-red-200">{addError}</p>
                     </div>
                 {/if}
 

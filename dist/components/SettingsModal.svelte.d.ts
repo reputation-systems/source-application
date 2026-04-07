@@ -6,11 +6,13 @@ declare const __propDef: {
         webTx: string;
         webAddr: string;
         webTkn: string;
+        hashValidation?: boolean;
         onSave: (settings: {
             explorerUri: string;
             webTx: string;
             webAddr: string;
             webTkn: string;
+            hashValidation: boolean;
         }) => void;
     };
     events: {

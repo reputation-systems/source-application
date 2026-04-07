@@ -14,7 +14,7 @@ declare const __propDef: {
         unavailableSources?: CachedData<UnavailableSource[]>;
         isLoading?: boolean;
         currentSearchHash?: string;
-        onSearch: (hash: string) => void;
+        onSearch: (hash: string, algorithm?: string) => void;
     };
     events: {
         [evt: string]: CustomEvent<any>;

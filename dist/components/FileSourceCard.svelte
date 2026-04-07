@@ -1,4 +1,5 @@
 <script>import {
+  getPrimaryUrl
 } from "../ergo/sourceObject";
 import {
   confirmSource,
@@ -17,9 +18,12 @@ import {
   Check,
   X,
   Pen,
-  CloudOff
+  CloudOff,
+  ShieldCheck,
+  Loader2
 } from "lucide-svelte";
 import * as jdenticon from "jdenticon";
+import { downloadAndHash } from "../ergo/hashUtils";
 export let source;
 export let confirmations = [];
 export let invalidations = [];
@@ -58,14 +62,27 @@ $:
   userHasMarkedUnavailable = unavailabilities.some(
     (op) => op.authorTokenId === userProfileTokenId
   );
+$:
+  primaryUrl = getPrimaryUrl(source);
+$:
+  sourceEntry = source.source;
 let isEditingSource = false;
-let newSourceUrl = source.sourceUrl;
+let editUrlLink = source.source?.urlLink || "";
 let isUpdatingSource = false;
+let isVerifying = false;
+let verifyResult = null;
+let verifyMessage = null;
+let verifyProgress = null;
 function getAvatarSvg(tokenId, size = 40) {
   return jdenticon.toSvg(tokenId, size);
 }
 function copyToClipboard(text) {
   navigator.clipboard.writeText(text);
+}
+function truncateId(id, chars = 8) {
+  if (id.length <= chars * 2 + 3)
+    return id;
+  return `${id.slice(0, chars)}...${id.slice(-chars)}`;
 }
 async function handleConfirm() {
   if (!profile)
@@ -75,12 +92,10 @@ async function handleConfirm() {
   try {
     await confirmSource(
       source.fileHash,
-      source.sourceUrl,
+      source.hashFunctionId,
+      source.source,
       profile,
       confirmations,
-      // Pass current confirmations as "currentSources" for check?
-      // Wait, confirmSource expects "currentSources: FileSource[]".
-      // confirmations IS FileSource[]. Correct.
       explorerUri
     );
     console.log("Source confirmed");
@@ -112,7 +127,7 @@ async function handleUnavailable() {
   isVoting = true;
   voteError = null;
   try {
-    await markUnavailableSource(source.sourceUrl, profile, explorerUri);
+    await markUnavailableSource(primaryUrl, profile, explorerUri);
     console.log("Source marked as unavailable");
   } catch (err) {
     console.error("Error marking unavailable:", err);
@@ -122,15 +137,19 @@ async function handleUnavailable() {
   }
 }
 async function handleUpdateSource() {
-  if (!profile || !newSourceUrl.trim())
+  if (!profile || !editUrlLink.trim())
     return;
   isUpdatingSource = true;
   voteError = null;
   try {
+    const updatedEntry = {
+      ...source.source,
+      urlLink: editUrlLink.trim()
+    };
     await updateFileSource(
       source.id,
       source.fileHash,
-      newSourceUrl.trim(),
+      updatedEntry,
       profile,
       explorerUri
     );
@@ -141,6 +160,51 @@ async function handleUpdateSource() {
     voteError = err?.message || "Failed to update source";
   } finally {
     isUpdatingSource = false;
+  }
+}
+async function handleVerifyHash() {
+  if (!sourceEntry?.urlLink || !sourceEntry.contentHash) {
+    verifyResult = "error";
+    verifyMessage = "No URL or content hash to verify against.";
+    return;
+  }
+  const algorithmId = source.hashFunctionId || sourceEntry.hashFunctionId;
+  if (!algorithmId || algorithmId === "__custom__") {
+    verifyResult = "error";
+    verifyMessage = "Cannot verify: custom hash algorithm";
+    alert("Cannot verify: custom hash algorithm");
+    return;
+  }
+  isVerifying = true;
+  verifyResult = null;
+  verifyMessage = null;
+  verifyProgress = null;
+  try {
+    const isChunked = sourceEntry.isChunked === true;
+    const computedHash = await downloadAndHash(
+      sourceEntry.urlLink,
+      algorithmId,
+      isChunked,
+      (current, total) => {
+        verifyProgress = `Downloading chunk ${current + 1}/${total}...`;
+      }
+    );
+    if (computedHash === sourceEntry.contentHash) {
+      verifyResult = "match";
+      verifyMessage = "Hash verified \u2014 content matches!";
+    } else {
+      verifyResult = "mismatch";
+      verifyMessage = `Hash mismatch! Expected: ${sourceEntry.contentHash.slice(0, 16)}... Got: ${computedHash.slice(0, 16)}...`;
+    }
+  } catch (err) {
+    verifyResult = "error";
+    verifyMessage = err?.message || "Verification failed";
+    if (err?.message?.includes("custom hash algorithm")) {
+      alert(err.message);
+    }
+  } finally {
+    isVerifying = false;
+    verifyProgress = null;
   }
 }
 function getScoreColor(score) {
@@ -217,7 +281,7 @@ $:
 
             <!-- File Hash -->
             <div class="mb-3">
-                <div class="text-xs text-muted-foreground mb-1">File Hash:</div>
+                <div class="text-xs text-muted-foreground mb-1">Raw File Hash:</div>
                 <div class="flex items-center gap-2">
                     <a
                         href={`${source_explorer_url}?search=${source.fileHash}`}
@@ -237,65 +301,141 @@ $:
                 </div>
             </div>
 
-            <!-- Source URL -->
+            <!-- Hash Function ID -->
+            {#if source.hashFunctionId}
+                <div class="mb-3">
+                    <div class="text-xs text-muted-foreground mb-1">Hash Function:</div>
+                    <div class="text-xs font-mono bg-secondary/50 px-2 py-1 rounded break-all">
+                        {truncateId(source.hashFunctionId, 12)}
+                    </div>
+                </div>
+            {/if}
+
+            <!-- Source Entry -->
             <div class="mb-3">
                 <div class="text-xs text-muted-foreground mb-1">
                     Download Source:
                 </div>
-                <div class="flex items-center gap-2">
-                    {#if isEditingSource}
-                        <div class="flex-1 flex gap-2">
+
+                {#if isEditingSource}
+                    <div class="space-y-2">
+                        <div class="flex gap-2">
                             <Input
-                                bind:value={newSourceUrl}
-                                placeholder="New source URL"
+                                bind:value={editUrlLink}
+                                placeholder="Source URL"
                                 class="h-8 text-sm font-mono"
                                 disabled={isUpdatingSource}
                             />
+                        </div>
+                        <div class="flex gap-2 mt-2">
                             <Button
                                 size="sm"
                                 variant="ghost"
-                                class="h-8 w-8 p-0 text-green-500"
+                                class="h-8 px-3 text-green-500"
                                 on:click={handleUpdateSource}
-                                disabled={isUpdatingSource ||
-                                    !newSourceUrl.trim() ||
-                                    newSourceUrl === source.sourceUrl}
+                                disabled={isUpdatingSource || !editUrlLink.trim()}
                             >
-                                <Check class="w-4 h-4" />
+                                <Check class="w-4 h-4 mr-1" />
+                                Save
                             </Button>
                             <Button
                                 size="sm"
                                 variant="ghost"
-                                class="h-8 w-8 p-0 text-red-500"
+                                class="h-8 px-3 text-red-500"
                                 on:click={() => {
                                     isEditingSource = false;
-                                    newSourceUrl = source.sourceUrl;
+                                    editUrlLink = source.source?.urlLink || '';
                                 }}
                                 disabled={isUpdatingSource}
                             >
-                                <X class="w-4 h-4" />
+                                <X class="w-4 h-4 mr-1" />
+                                Cancel
                             </Button>
                         </div>
-                    {:else}
+                    </div>
+                {:else if sourceEntry}
+                    <div class="flex items-center gap-2">
                         <a
-                            href={source.sourceUrl}
+                            href={sourceEntry.urlLink}
                             target="_blank"
                             rel="noopener noreferrer"
                             class="text-sm text-blue-400 hover:underline break-all font-mono flex items-center gap-1"
                         >
-                            {source.sourceUrl}
+                            {sourceEntry.urlLink}
                             <ExternalLink class="w-3 h-3 flex-shrink-0" />
                         </a>
                         {#if source.ownerTokenId === userProfileTokenId}
                             <button
                                 on:click={() => (isEditingSource = true)}
                                 class="p-1 hover:bg-secondary rounded text-muted-foreground hover:text-foreground"
-                                title="Edit source URL"
+                                title="Edit source entry"
                             >
                                 <Pen class="w-3 h-3" />
                             </button>
                         {/if}
+                    </div>
+
+                    <!-- Entry metadata (content hash, format, chunked) -->
+                    {#if sourceEntry.contentHash || sourceEntry.contentFormat || sourceEntry.rawFormat || sourceEntry.isChunked}
+                        <div class="mt-1 flex flex-wrap gap-2 text-xs">
+                            {#if sourceEntry.contentHash}
+                                <span class="bg-secondary/50 px-1.5 py-0.5 rounded font-mono" title="Content Hash">
+                                    🔒 {truncateId(sourceEntry.contentHash, 6)}
+                                </span>
+                            {/if}
+                            {#if sourceEntry.contentFormat}
+                                <span class="bg-secondary/50 px-1.5 py-0.5 rounded font-mono" title="Content Format">
+                                    📄 {sourceEntry.contentFormat}
+                                </span>
+                            {/if}
+                            {#if sourceEntry.rawFormat}
+                                <span class="bg-secondary/50 px-1.5 py-0.5 rounded font-mono" title="Raw Format">
+                                    📦 {sourceEntry.rawFormat}
+                                </span>
+                            {/if}
+                            {#if sourceEntry.isChunked}
+                                <span class="bg-blue-500/20 text-blue-400 px-1.5 py-0.5 rounded font-mono" title="Chunked manifest">
+                                    🧩 Chunked
+                                </span>
+                            {/if}
+                        </div>
                     {/if}
-                </div>
+
+                    <!-- Hash verification button (Change #5) -->
+                    {#if sourceEntry.contentHash && sourceEntry.urlLink}
+                        <div class="mt-2 flex items-center gap-2">
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                on:click={handleVerifyHash}
+                                disabled={isVerifying}
+                                class="text-xs h-7"
+                                title="Download content and verify hash"
+                            >
+                                {#if isVerifying}
+                                    <Loader2 class="w-3 h-3 mr-1 animate-spin" />
+                                    {verifyProgress || 'Verifying...'}
+                                {:else}
+                                    <ShieldCheck class="w-3 h-3 mr-1" />
+                                    Verify Hash
+                                {/if}
+                            </Button>
+                            {#if verifyResult === 'match'}
+                                <span class="text-xs text-green-500 flex items-center gap-1">
+                                    <Check class="w-3 h-3" /> {verifyMessage}
+                                </span>
+                            {:else if verifyResult === 'mismatch'}
+                                <span class="text-xs text-red-500 flex items-center gap-1">
+                                    <X class="w-3 h-3" /> {verifyMessage}
+                                </span>
+                            {:else if verifyResult === 'error'}
+                                <span class="text-xs text-amber-500">
+                                    {verifyMessage}
+                                </span>
+                            {/if}
+                        </div>
+                    {/if}
+                {/if}
             </div>
 
             <!-- Voting Section -->

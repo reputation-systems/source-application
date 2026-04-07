@@ -1,4 +1,5 @@
 import { create_profile, create_opinion, update_opinion } from 'reputation-system';
+import { serializeSourceEntry } from './sourceObject';
 import { FILE_SOURCE_TYPE_NFT_ID, INVALID_FILE_SOURCE_TYPE_NFT_ID, UNAVAILABLE_SOURCE_TYPE_NFT_ID, PROFILE_OPINION_TYPE_NFT_ID, PROFILE_TOTAL_SUPPLY, PROFILE_TYPE_NFT_ID, } from './envs';
 /**
  * Gets the main profile box from a ReputationProof.
@@ -14,7 +15,7 @@ function getMainProfileBox(proof) {
  * Creates a user profile box (same as forum).
  */
 export async function createProfileBox(explorerUri) {
-    const profileTxId = await create_profile(PROFILE_TOTAL_SUPPLY, PROFILE_TYPE_NFT_ID, explorerUri, { name: "Anon" });
+    const profileTxId = await create_profile(explorerUri, PROFILE_TOTAL_SUPPLY, PROFILE_TYPE_NFT_ID, { name: "Anon" });
     if (!profileTxId) {
         throw new Error("Fatal error: The profile creation transaction failed to send.");
     }
@@ -23,10 +24,16 @@ export async function createProfileBox(explorerUri) {
 }
 /**
  * Add a new FILE_SOURCE box.
- * Creates a box with R5=fileHash, R9=sourceUrl.
+ * Creates a box with R5=fileHash (raw file hash), R9=serialized source entries.
+ *
+ * @param fileHash - The raw file hash digest (R5 anchor)
+ * @param hashFunctionId - ID of the hash function used (HASH(EMPTY_INPUT))
+ * @param sourceEntry - Single SourceEntry object for R9
+ * @param proof - User's reputation proof
+ * @param explorerUri - Explorer API endpoint
  */
-export async function addFileSource(fileHash, sourceUrl, proof, explorerUri) {
-    console.log("API: addFileSource", { fileHash, sourceUrl });
+export async function addFileSource(fileHash, hashFunctionId, sourceEntry, proof, explorerUri) {
+    console.log("API: addFileSource", { fileHash, hashFunctionId, sourceEntry });
     console.log("Proof:", proof);
     if (!proof) {
         throw new Error("Reputation proof is required to add a file source.");
@@ -36,12 +43,14 @@ export async function addFileSource(fileHash, sourceUrl, proof, explorerUri) {
     if (!mainBox) {
         throw new Error("Profile box required but not available yet. Please wait for profile creation to confirm.");
     }
+    // Serialize single source entry as JSON for R9 content
+    const serializedContent = serializeSourceEntry(sourceEntry);
     const tx = await create_opinion(explorerUri, // explorerUri: Explorer API endpoint
     1, // token_amount: 1 token for the new file source box
     FILE_SOURCE_TYPE_NFT_ID, // type_nft_id: Type NFT for FILE_SOURCE
-    fileHash, // object_pointer: R5 - The file hash
+    fileHash, // object_pointer: R5 - The raw file hash
     true, // polarization: R8 - Positive opinion
-    sourceUrl, // content: R9 - The source URL
+    serializedContent, // content: R9 - Serialized source entry
     false, // is_locked: R6 - Unlocked
     mainBox // main_box: The profile box to split from
     );
@@ -51,17 +60,25 @@ export async function addFileSource(fileHash, sourceUrl, proof, explorerUri) {
     return tx;
 }
 /**
- * Update a FILE_SOURCE box (spend old, create new with same hash but new URL).
+ * Update a FILE_SOURCE box (spend old, create new with same hash but new source entries).
  * The old box must be owned by the current user.
+ *
+ * @param oldBoxId - Box ID of the existing FILE_SOURCE to update
+ * @param fileHash - The raw file hash (must match existing)
+ * @param newSourceEntry - New SourceEntry object for R9
+ * @param proof - User's reputation proof
+ * @param explorerUri - Explorer API endpoint
  */
-export async function updateFileSource(oldBoxId, fileHash, newSourceUrl, proof, explorerUri) {
-    console.log("API: updateFileSource", { oldBoxId, fileHash, newSourceUrl });
+export async function updateFileSource(oldBoxId, fileHash, newSourceEntry, proof, explorerUri) {
+    console.log("API: updateFileSource", { oldBoxId, fileHash, newSourceEntry });
     // Find the existing file source box to update
     const existingBox = proof?.current_boxes.find((b) => b.box.boxId === oldBoxId) || null;
     if (!existingBox) {
         throw new Error("File source box to update not found.");
     }
-    const tx = await update_opinion(explorerUri, existingBox, true, newSourceUrl);
+    // Serialize new source entry as JSON for R9 content
+    const serializedContent = serializeSourceEntry(newSourceEntry);
+    const tx = await update_opinion(explorerUri, existingBox, true, serializedContent);
     if (!tx)
         throw new Error("File source update transaction failed.");
     console.log("File source update transaction sent, ID:", tx);
@@ -69,16 +86,17 @@ export async function updateFileSource(oldBoxId, fileHash, newSourceUrl, proof, 
 }
 /**
  * Confirm a FILE_SOURCE box.
- * Creates a new FILE_SOURCE box with same hash and URL.
+ * Creates a new FILE_SOURCE box with same hash and source entries.
  */
-export async function confirmSource(fileHash, sourceUrl, proof, currentSources, explorerUri) {
-    console.log("API: confirmSource", { fileHash, sourceUrl });
+export async function confirmSource(fileHash, hashFunctionId, sourceEntry, proof, currentSources, explorerUri) {
+    console.log("API: confirmSource", { fileHash, sourceEntry });
     // Safety check: has the user already confirmed this?
     const userTokenId = proof?.token_id;
-    if (userTokenId && currentSources.some(s => s.sourceUrl === sourceUrl && s.ownerTokenId === userTokenId)) {
+    const primaryUrl = sourceEntry.urlLink || '';
+    if (userTokenId && currentSources.some(s => s.source?.urlLink === primaryUrl && s.ownerTokenId === userTokenId)) {
         throw new Error("You have already confirmed this source.");
     }
-    return await addFileSource(fileHash, sourceUrl, proof, explorerUri);
+    return await addFileSource(fileHash, hashFunctionId, sourceEntry, proof, explorerUri);
 }
 /**
  * Mark a FILE_SOURCE box as invalid.

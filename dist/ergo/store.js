@@ -87,3 +87,10 @@ export const profileUnavailabilities = createPersistentStore('source_profile_una
 export const profileOpinionsGiven = createPersistentStore('source_profile_opinions_given', {});
 export const isLoading = writable(false);
 export const error = writable(null);
+// --- SETTINGS ---
+/**
+ * When enabled, adding a source will download the file from the URL and verify
+ * its hash matches before submitting the transaction. Disabled by default to
+ * avoid large downloads and CORS issues in the browser.
+ */
+export const hashValidationEnabled = createPersistentStore('hash_validation_enabled', false);

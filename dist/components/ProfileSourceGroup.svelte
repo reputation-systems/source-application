@@ -1,4 +1,5 @@
 <script>import {
+  getPrimaryUrl
 } from "../ergo/sourceObject";
 import {} from "../ergo/sourceObject";
 import * as jdenticon from "jdenticon";
@@ -50,17 +51,18 @@ function getUnavailabilities(sourceUrl) {
             <div class="space-y-3">
                 {#each group.sources as source}
                     {@const invs = getInvalidations(source.id)}
-                    {@const unavs = getUnavailabilities(source.sourceUrl)}
+                    {@const primaryUrl = getPrimaryUrl(source)}
+                    {@const unavs = getUnavailabilities(primaryUrl)}
 
                     <div class="py-1">
                         <div class="flex items-start justify-between gap-2">
                             <a
-                                href={source.sourceUrl}
+                                href={primaryUrl}
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 class="text-xs text-blue-400 hover:underline break-all font-mono flex items-center gap-1"
                             >
-                                {source.sourceUrl}
+                                {primaryUrl}
                                 <ExternalLink class="w-2 h-2 flex-shrink-0" />
                             </a>
 

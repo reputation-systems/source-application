@@ -77,3 +77,13 @@ export declare const profileOpinionsGiven: {
 };
 export declare const isLoading: import("svelte/store").Writable<boolean>;
 export declare const error: import("svelte/store").Writable<string | null>;
+/**
+ * When enabled, adding a source will download the file from the URL and verify
+ * its hash matches before submitting the transaction. Disabled by default to
+ * avoid large downloads and CORS issues in the browser.
+ */
+export declare const hashValidationEnabled: {
+    subscribe: (this: void, run: import("svelte/store").Subscriber<boolean>, invalidate?: import("svelte/store").Invalidator<boolean> | undefined) => import("svelte/store").Unsubscriber;
+    set: (value: boolean) => void;
+    update: (fn: (value: boolean) => boolean) => void;
+};

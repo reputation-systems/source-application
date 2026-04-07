@@ -42,9 +42,18 @@ async function handleConfirm() {
   isVoting = true;
   voteError = null;
   try {
+    const sourceEntry = {
+      hashFunctionId: "",
+      contentFormat: "",
+      contentHash: "",
+      rawFormat: "",
+      urlLink: group.sourceUrl
+    };
     await confirmSource(
       fileHash,
-      group.sourceUrl,
+      "",
+      // hashFunctionId
+      sourceEntry,
       reputationProof,
       currentSources,
       explorerUri
@@ -109,8 +118,6 @@ async function handleUnavailable() {
                     <ExternalLink class="w-3 h-3 flex-shrink-0" />
                 </a>
             </div>
-
-            <!-- Global Status Badge (Optional, could be added here) -->
         </div>
 
         <!-- Contributing Profiles -->

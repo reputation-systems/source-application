@@ -5,6 +5,7 @@ import { Input } from "./ui/input/index.js";
 import { Button } from "./ui/button/index.js";
 import { Search, X, User, LayoutGrid } from "lucide-svelte";
 import Timeline from "./Timeline.svelte";
+import { getPrimaryUrl } from "../ergo/sourceObject";
 import { FileSourceCard } from "..";
 export let connected = false;
 export let hasProfile = false;
@@ -95,7 +96,7 @@ $:
         color: "#22c55e",
         // green-500
         authorTokenId: activeProfileTokenId,
-        data: { sourceUrl: source.sourceUrl }
+        data: { sourceUrl: getPrimaryUrl(source) }
       });
     }
     for (const inv of invalidations) {
@@ -264,7 +265,7 @@ $:
                         profile={reputationProof}
                         invalidations={invalidFileSources[source.id]?.data ||
                             []}
-                        unavailabilities={unavailableSources[source.sourceUrl]
+                        unavailabilities={unavailableSources[getPrimaryUrl(source)]
                             ?.data || []}
                         {explorerUri}
                         {webExplorerUriTx}
