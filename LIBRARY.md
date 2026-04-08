@@ -60,6 +60,7 @@ Form for adding new file sources to the network. It supports two modes: a "free"
 - `explorerUri: string` - Ergo Explorer API endpoint.
 - `source_explorer_url: string` - Base URL for the source explorer (used for deep links).
 - `hash?: Writable<string>` - Optional. A Svelte writable store for the file hash.
+- `fixedHashFunctionId?: string` - Optional. Hash algorithm for the fixed anchor hash. In fixed mode the default is `blake2b256`.
 - `title?: string` - Optional. Custom title for the component (default: "Add New File Source").
 - `onSourceAdded?: (txId: string) => void` - Callback when source is added.
 
@@ -67,8 +68,10 @@ Form for adding new file sources to the network. It supports two modes: a "free"
 - **Always Visible**: The current hash is always displayed at the top of the component.
 - **Fixed Hash Mode** (when `hash` store has a value):
     - Manual hash input and file upload fields are hidden.
+    - The anchor hash function comes from `fixedHashFunctionId` instead of the form UI.
     - The "Compute hash from URL" button is hidden.
     - When clicking "Add Source", the component automatically downloads the file from the URL, calculates its hash, and verifies it matches the fixed hash before proceeding.
+    - Source-entry metadata such as content hash, content hash function id, and formats remain optional.
 - **Free Mode** (when `hash` store is empty or undefined):
     - User can provide the hash manually.
     - User can upload a local file to calculate its hash.
@@ -96,6 +99,7 @@ Form for adding new file sources to the network. It supports two modes: a "free"
   {explorerUri}
   {source_explorer_url}
   hash={fileHashStore}
+  fixedHashFunctionId="blake2b256"
   title="Add Download Link"
   onSourceAdded={(tx) => console.log('Source added:', tx)}
 />

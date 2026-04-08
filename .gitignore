@@ -47,3 +47,4 @@ yarn-error.log
 .metals/
 .scala-build/
 .test.scala
+.codex

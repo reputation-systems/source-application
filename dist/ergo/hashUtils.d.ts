@@ -49,6 +49,10 @@ export declare const SEARCH_HASH_ALGORITHMS: readonly [{
     readonly value: "keccak256";
 }];
 /**
+ * Normalize supported aliases to the internal algorithm identifiers used by the UI.
+ */
+export declare function normalizeHashAlgorithmId(algorithmId: string): string;
+/**
  * Compute a hash of the given data using the specified algorithm.
  * @returns hex string of the hash, or null if algorithm is unknown/custom
  */

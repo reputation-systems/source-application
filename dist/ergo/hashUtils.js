@@ -24,11 +24,23 @@ function uint8ArrayToHex(array) {
     return [...array].map(x => x.toString(16).padStart(2, '0')).join('');
 }
 /**
+ * Normalize supported aliases to the internal algorithm identifiers used by the UI.
+ */
+export function normalizeHashAlgorithmId(algorithmId) {
+    const normalized = algorithmId.trim().toLowerCase();
+    switch (normalized) {
+        case 'blake2b256':
+            return 'blake2b';
+        default:
+            return normalized;
+    }
+}
+/**
  * Compute a hash of the given data using the specified algorithm.
  * @returns hex string of the hash, or null if algorithm is unknown/custom
  */
 export function computeHash(data, algorithmId) {
-    switch (algorithmId) {
+    switch (normalizeHashAlgorithmId(algorithmId)) {
         case 'sha256':
             return uint8ArrayToHex(sha256(data));
         case 'sha3_256':
@@ -55,7 +67,7 @@ export function validateHash(hash, algorithmId) {
     if (!/^[0-9a-fA-F]+$/.test(trimmed)) {
         return 'Hash must contain only hexadecimal characters (0-9, a-f)';
     }
-    switch (algorithmId) {
+    switch (normalizeHashAlgorithmId(algorithmId)) {
         case 'sha3_256':
         case 'sha256':
         case 'keccak256':
@@ -81,6 +93,9 @@ export function validateHash(hash, algorithmId) {
  * Get the human-readable label for an algorithm ID.
  */
 export function getAlgorithmLabel(algorithmId) {
+    if (normalizeHashAlgorithmId(algorithmId) === 'blake2b') {
+        return 'Blake2b-256';
+    }
     const found = HASH_OPTIONS.find(o => o.value === algorithmId);
     return found ? found.label : algorithmId;
 }
@@ -97,7 +112,8 @@ export function getAlgorithmLabel(algorithmId) {
  * @throws if algorithm is custom/unknown, fetch fails, etc.
  */
 export async function downloadAndHash(url, algorithmId, isChunked = false, onProgress) {
-    if (algorithmId === '__custom__' || !HASH_ALGORITHMS.some(a => a.value === algorithmId)) {
+    const normalizedAlgorithmId = normalizeHashAlgorithmId(algorithmId);
+    if (normalizedAlgorithmId === '__custom__' || !HASH_ALGORITHMS.some(a => a.value === normalizedAlgorithmId)) {
         throw new Error('Cannot verify: custom hash algorithm');
     }
     let data;
@@ -145,7 +161,7 @@ export async function downloadAndHash(url, algorithmId, isChunked = false, onPro
         const buffer = await response.arrayBuffer();
         data = new Uint8Array(buffer);
     }
-    const result = computeHash(data, algorithmId);
+    const result = computeHash(data, normalizedAlgorithmId);
     if (result === null) {
         throw new Error(`Cannot verify: unsupported hash algorithm "${algorithmId}"`);
     }

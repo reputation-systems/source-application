@@ -8,6 +8,7 @@ declare const __propDef: {
         source_explorer_url: string;
         onSourceAdded?: ((txId: string) => void) | null;
         hash?: Writable<string> | undefined;
+        fixedHashFunctionId?: string;
         /** When false, skip automatic hash verification when adding a source. */ hashValidationEnabled?: boolean;
         title?: string;
         class?: string;
