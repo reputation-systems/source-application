@@ -7,7 +7,7 @@
     import { Label } from "$lib/components/ui/label/index.js";
     import { Textarea } from "$lib/components/ui/textarea";
     import { AlertTriangle } from "lucide-svelte";
-    import { HASH_OPTIONS, validateHash } from "$lib/ergo/hashUtils";
+    import { HASH_OPTIONS, normalizeHashAlgorithmId, validateHash } from "$lib/ergo/hashUtils";
 
     export let hasProfile = false;
     export let profile: ReputationProof | null = null;
@@ -22,7 +22,9 @@
     let hashSelectValue = "";
     let customHashFunctionId = "";
 
-    $: effectiveAlgorithm = hashSelectValue === "__custom__" ? customHashFunctionId : hashSelectValue;
+    $: effectiveAlgorithm = hashSelectValue === "__custom__"
+        ? customHashFunctionId
+        : normalizeHashAlgorithmId(hashSelectValue);
 
     // Hash validation (Change #1)
     let fileHashValidationError: string | null = null;
@@ -43,7 +45,7 @@
         try {
             // Build a simple source entry with just the URL
             const entry: SourceEntry = {
-                hashFunctionId: "",
+                hashFunctionId: normalizeHashAlgorithmId(effectiveAlgorithm),
                 contentFormat: "",
                 contentHash: "",
                 rawFormat: "",

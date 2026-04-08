@@ -60,7 +60,7 @@ Form for adding new file sources to the network. It supports two modes: a "free"
 - `explorerUri: string` - Ergo Explorer API endpoint.
 - `source_explorer_url: string` - Base URL for the source explorer (used for deep links).
 - `hash?: Writable<string>` - Optional. A Svelte writable store for the file hash.
-- `fixedHashFunctionId?: string` - Optional. Hash algorithm for the fixed anchor hash. In fixed mode the default is `blake2b256`.
+- `fixedHashFunctionId?: string` - Optional. Hash algorithm ID for the fixed anchor hash. Use the canonical `HASH("")` value. In fixed mode the default is Blake2b-256: `0e5751c026e543b2e8ab2eb06099daa1d1e5df47778f7787faab45cdf12fe3a8`.
 - `title?: string` - Optional. Custom title for the component (default: "Add New File Source").
 - `onSourceAdded?: (txId: string) => void` - Callback when source is added.
 
@@ -71,7 +71,8 @@ Form for adding new file sources to the network. It supports two modes: a "free"
     - The anchor hash function comes from `fixedHashFunctionId` instead of the form UI.
     - The "Compute hash from URL" button is hidden.
     - When clicking "Add Source", the component automatically downloads the file from the URL, calculates its hash, and verifies it matches the fixed hash before proceeding.
-    - Source-entry metadata such as content hash, content hash function id, and formats remain optional.
+    - If the source-entry hash function id is omitted, the component stores the same canonical algorithm id used by the fixed anchor hash.
+    - Source-entry metadata such as content hash and formats remain optional.
 - **Free Mode** (when `hash` store is empty or undefined):
     - User can provide the hash manually.
     - User can upload a local file to calculate its hash.
@@ -99,7 +100,7 @@ Form for adding new file sources to the network. It supports two modes: a "free"
   {explorerUri}
   {source_explorer_url}
   hash={fileHashStore}
-  fixedHashFunctionId="blake2b256"
+  fixedHashFunctionId="0e5751c026e543b2e8ab2eb06099daa1d1e5df47778f7787faab45cdf12fe3a8"
   title="Add Download Link"
   onSourceAdded={(tx) => console.log('Source added:', tx)}
 />

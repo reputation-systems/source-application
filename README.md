@@ -124,7 +124,7 @@ The "Add Source" form can be pre-filled using URL query parameters. This is usef
 | Parameter | Description | Example |
 |-----------|-------------|---------|
 | `fileHash` | Raw file hash digest (R5 anchor) | `a1b2c3...` (64 hex chars) |
-| `hashFunctionId` | Hash algorithm ID (`sha3_256`, `blake2b`, `sha256`, `keccak256`, or custom) | `sha3_256` |
+| `hashFunctionId` | Hash algorithm ID, defined as `HASH("")` for the selected algorithm | `a7ffc6f8bf1ed76651c14756a061d662f580ff4de43b49fa82d80a4b80f8434a` |
 | `urlLink` | Download URL for the file | `https://example.com/file.tar.gz` |
 | `contentFormat` | Content format (extension or format box ID) | `.tar.gz` |
 | `contentHash` | Hash of the content at the URL | `d4e5f6...` (64 hex chars) |
@@ -136,22 +136,22 @@ The "Add Source" form can be pre-filled using URL query parameters. This is usef
 
 **Basic source link:**
 ```
-https://your-app.com/?tab=add&fileHash=a1b2c3d4e5f6...&hashFunctionId=blake2b&urlLink=https://example.com/file.zip
+https://your-app.com/?tab=add&fileHash=a1b2c3d4e5f6...&hashFunctionId=0e5751c026e543b2e8ab2eb06099daa1d1e5df47778f7787faab45cdf12fe3a8&urlLink=https://example.com/file.zip
 ```
 
 **Full source with content hash and format:**
 ```
-https://your-app.com/?tab=add&fileHash=a1b2c3d4...&hashFunctionId=sha3_256&urlLink=https://example.com/archive.tar.gz&contentFormat=.tar.gz&contentHash=d4e5f6a7...
+https://your-app.com/?tab=add&fileHash=a1b2c3d4...&hashFunctionId=a7ffc6f8bf1ed76651c14756a061d662f580ff4de43b49fa82d80a4b80f8434a&urlLink=https://example.com/archive.tar.gz&contentFormat=.tar.gz&contentHash=d4e5f6a7...
 ```
 
 **Chunked file source:**
 ```
-https://your-app.com/?tab=add&fileHash=a1b2c3d4...&hashFunctionId=blake2b&urlLink=https://example.com/manifest&isChunked=true&contentFormat=.bin
+https://your-app.com/?tab=add&fileHash=a1b2c3d4...&hashFunctionId=0e5751c026e543b2e8ab2eb06099daa1d1e5df47778f7787faab45cdf12fe3a8&urlLink=https://example.com/manifest&isChunked=true&contentFormat=.bin
 ```
 
 **With separate raw format (content ≠ raw):**
 ```
-https://your-app.com/?tab=add&fileHash=a1b2c3d4...&hashFunctionId=sha256&urlLink=https://example.com/file.tar.gz&contentFormat=.tar.gz&rawFormat=.bin&rawHash=e5f6a7b8...
+https://your-app.com/?tab=add&fileHash=a1b2c3d4...&hashFunctionId=e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855&urlLink=https://example.com/file.tar.gz&contentFormat=.tar.gz&rawFormat=.bin&rawHash=e5f6a7b8...
 ```
 
 ### Example URLs
@@ -166,7 +166,12 @@ https://reputation-systems.github.io/source-application?tab=add&fileHash=683626b
 
 - When `rawFormat` or `rawHash` is provided, the "Content is same as raw" checkbox is automatically unchecked.
 - When `isChunked=true`, the URL field label changes to "Manifest URL".
-- If `hashFunctionId` doesn't match a known algorithm, it is treated as a custom hash function.
+- Known built-in ids are:
+  - `SHA3-256`: `a7ffc6f8bf1ed76651c14756a061d662f580ff4de43b49fa82d80a4b80f8434a`
+  - `Blake2b-256`: `0e5751c026e543b2e8ab2eb06099daa1d1e5df47778f7787faab45cdf12fe3a8`
+  - `SHA-256`: `e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855`
+  - `Keccak-256`: `c5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470`
+- Legacy aliases such as `sha3_256`, `blake2b`, `blake2b256`, `sha256`, and `keccak256` are still accepted by the UI, but canonical ids are what should be sent and stored.
 - Parameters are read on component mount; changes to the URL after initial load don't re-trigger pre-fill.
 
 ---

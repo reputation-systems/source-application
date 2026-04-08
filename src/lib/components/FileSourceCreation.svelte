@@ -13,6 +13,7 @@
 
     import { type Writable } from "svelte/store";
     import {
+        HASH_ALGORITHM_IDS,
         HASH_OPTIONS,
         getAlgorithmLabel,
         normalizeHashAlgorithmId,
@@ -25,7 +26,7 @@
     export let source_explorer_url: string;
     export let onSourceAdded: ((txId: string) => void) | null = null;
     export let hash: Writable<string> | undefined = undefined;
-    export let fixedHashFunctionId: string = "blake2b256";
+    export let fixedHashFunctionId: string = HASH_ALGORITHM_IDS.blake2b256;
 
     /** When false, skip automatic hash verification when adding a source. */
     export let hashValidationEnabled: boolean = false;
@@ -73,7 +74,7 @@
     let rawHashValidationError: string | null = null;
 
     $: effectiveHashFunctionId = isHashFixed
-        ? (fixedHashFunctionId.trim() || "blake2b256")
+        ? normalizeHashAlgorithmId(fixedHashFunctionId.trim() || HASH_ALGORITHM_IDS.blake2b256)
         : (hashSelectValue === "__custom__" ? customHashFunctionId : hashSelectValue);
 
     // Validate file hash when it changes
@@ -292,7 +293,9 @@
             const finalRawHash = contentEqualsRaw ? entryContentHash.trim() : ""; // rawHash not a separate field
 
             const entry: SourceEntry = {
-                hashFunctionId: entryHashFunctionId.trim(),
+                hashFunctionId: normalizeHashAlgorithmId(
+                    entryHashFunctionId.trim() || effectiveHashFunctionId.trim(),
+                ),
                 contentFormat: entryContentFormat.trim(),
                 contentHash: entryContentHash.trim(),
                 rawFormat: finalRawFormat,
