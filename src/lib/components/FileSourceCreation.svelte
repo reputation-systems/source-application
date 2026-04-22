@@ -35,7 +35,7 @@
     let className: string = "";
     export { className as class };
 
-    const hasProfile = profile !== null;
+    $: hasProfile = profile !== null && (profile.current_boxes?.length ?? 0) > 0;
     const baseClasses = "bg-card p-6 rounded-lg border";
 
     let newFileHash = "";
