@@ -30,7 +30,6 @@
 	import { User, Settings, Search, Plus, UserPlus } from "lucide-svelte";
 	import { get, writable } from "svelte/store";
 	import SettingsModal from "$lib/components/SettingsModal.svelte";
-	import ProfileModal from "$lib/components/ProfileModal.svelte";
 	import { fetchAllUserProfiles, fetchTypeNfts, convertToRPBox } from "reputation-system";
 	import type { TypeNFT, ApiBox } from "reputation-system";
 	import { createProfileBox } from "$lib/ergo/sourceStore";
@@ -39,13 +38,16 @@
 	import SearchByHash from "$lib/components/SearchByHash.svelte";
 	import { Button } from "$lib/components/ui/button/index.js";
 	import FileSourceCreation from "$lib/components/FileSourceCreation.svelte";
-
-	export let connect_executed = false;
+	import {
+		WalletAddressChangeHandler,
+		WalletButton,
+		walletAddress,
+		walletBalance,
+		walletConnected,
+	} from "wallet-svelte-component";
 
 	let current_height = 0;
-	let profile_creation_tx = "";
 	let balanceUpdateInterval: any;
-	let showProfileModal = false;
 	let showSettingsModal = false;
 
 	let activeTab: "profile" | "search" | "add" = "profile";
@@ -138,22 +140,6 @@
 			balanceMap.set(token.tokenId, token.amount);
 		});
 		return balanceMap;
-	}
-
-	async function connectWallet() {
-		if (typeof ergoConnector !== "undefined" && !connect_executed) {
-			connect_executed = true;
-			console.log("Connect wallet");
-			const nautilus = ergoConnector.nautilus;
-			if (nautilus && (await nautilus.connect())) {
-				address.set(await ergo.get_change_address());
-				network.set("ergo-mainnet");
-				await get_balance();
-				connected.set(true);
-			} else {
-				alert("Wallet not connected or unavailable");
-			}
-		}
 	}
 
 	/**
@@ -249,7 +235,7 @@
 
 				// R6 must be false (unlocked)
 				const r6 = box.additionalRegisters.R6.renderedValue;
-				if (r6 !== 'false' && r6 !== false) return false;
+				if (r6 !== "false") return false;
 
 				const tokenId = box.assets[0].tokenId;
 				const r5Rendered = box.additionalRegisters.R5.renderedValue as string;
@@ -374,11 +360,6 @@
 	onMount(() => {
 		if (!browser) return;
 
-		const init = async () => {
-			await connectWallet();
-		};
-		init();
-
 		balanceUpdateInterval = setInterval(updateWalletInfo, 30000);
 		scrollingTextElement?.addEventListener(
 			"animationiteration",
@@ -394,18 +375,28 @@
 		};
 	});
 
-	connected.subscribe(async (isConnected) => {
-		if (isConnected) {
-			await updateWalletInfo();
-			await loadUserProfile();
-		}
-	});
+	let lastLoadedWalletAddress: string | null = null;
+
+	$: connected.set($walletConnected);
+	$: address.set($walletAddress || null);
+	$: network.set($walletConnected ? "ergo-mainnet" : null);
+	$: balance.set($walletConnected ? Number($walletBalance.nanoErgs) : null);
+
+	$: if (browser && $walletConnected && $walletAddress && $walletAddress !== lastLoadedWalletAddress) {
+		lastLoadedWalletAddress = $walletAddress;
+		void updateWalletInfo();
+		void loadUserProfile();
+	}
+
+	$: if (browser && !$walletConnected && lastLoadedWalletAddress !== null) {
+		lastLoadedWalletAddress = null;
+		reputation_proof.set(null);
+	}
 
 	async function updateWalletInfo() {
-		if (typeof ergo === "undefined" || !$connected) return;
+		if (!$walletConnected) return;
 		try {
-			const walletBalance = await get_balance();
-			balance.set(walletBalance.get("ERG") || 0);
+			balance.set(Number($walletBalance.nanoErgs));
 			current_height = await get_current_height();
 		} catch (error) {
 			console.error("Error updating wallet information:", error);
@@ -592,13 +583,9 @@
 			<Settings class="w-6 h-6" />
 		</button>
 
-		<button
-			class="user-icon"
-			on:click={() => (showProfileModal = true)}
-			aria-label="Open profile"
-		>
-			<User class="w-6 h-6" />
-		</button>
+		<div class="wallet-button-container">
+			<WalletButton />
+		</div>
 		<div class="theme-toggle"><Theme /></div>
 	</div>
 </div>
@@ -613,18 +600,11 @@
 	onSave={handleSettingsSave}
 />
 
-<ProfileModal
-	bind:show={showProfileModal}
-	bind:profile_creation_tx
-	address={$address}
-	profile={$reputation_proof}
-	webExplorerUriTx={$web_explorer_uri_tx}
-	explorerUri={$explorer_uri}
-/>
+<WalletAddressChangeHandler />
 
 <main class="container mx-auto px-4 py-8 pb-20">
 	<div class="max-w-6xl mx-auto">
-		{#if !connected}
+		{#if !$connected}
 			<div
 				class="bg-amber-500/10 border border-amber-600 dark:border-amber-500/20 p-4 rounded-lg text-center mb-6"
 			>
@@ -727,6 +707,10 @@
 
 	.user-icon {
 		@apply p-2 rounded-full hover:bg-accent;
+	}
+
+	.wallet-button-container {
+		@apply flex items-center;
 	}
 
 	.tab-button {
