@@ -1,13 +1,6 @@
 import { SvelteComponent } from "svelte";
-import { type ReputationProof } from "../ergo/object";
 declare const __propDef: {
-    props: {
-        profile?: ReputationProof | null;
-        address?: string | null;
-        explorerUri: string;
-        source_explorer_url: string;
-        onProfileCreated?: ((txId: string) => void) | null;
-    };
+    props: Record<string, never>;
     events: {
         [evt: string]: CustomEvent<any>;
     };
