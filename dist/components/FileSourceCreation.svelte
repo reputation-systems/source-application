@@ -22,12 +22,14 @@ export let explorerUri;
 export let source_explorer_url;
 export let onSourceAdded = null;
 export let hash = void 0;
+export let fixed_hash_id = "";
 export let fixedHashFunctionId = HASH_ALGORITHM_IDS.blake2b256;
 export let hashValidationEnabled = false;
 export let title = "Add New File Source";
 let className = "";
 export { className as class };
-const hasProfile = profile !== null;
+$:
+  hasProfile = profile !== null && (profile.current_boxes?.length ?? 0) > 0;
 const baseClasses = "bg-card p-6 rounded-lg border";
 let newFileHash = "";
 let effectiveHashFunctionId = "";
@@ -79,12 +81,12 @@ $: {
   }
 }
 $:
-  currentHashValue = (hash ? $hash : "") || "";
+  currentHashValue = fixed_hash_id.trim() || ((hash ? $hash : "") || "");
 $:
   isHashFixed = currentHashValue !== "";
 $:
-  if (hash && $hash) {
-    newFileHash = $hash;
+  if (currentHashValue) {
+    newFileHash = currentHashValue;
   }
 $:
   hasValidEntry = entryUrlLink.trim() !== "";
@@ -134,6 +136,10 @@ onMount(() => {
   }
 });
 function updateHash(val) {
+  if (fixed_hash_id.trim()) {
+    newFileHash = currentHashValue;
+    return;
+  }
   newFileHash = val;
   if (hash) {
     hash.set(val);

@@ -26,6 +26,7 @@
     export let source_explorer_url: string;
     export let onSourceAdded: ((txId: string) => void) | null = null;
     export let hash: Writable<string> | undefined = undefined;
+    export let fixed_hash_id: string = "";
     export let fixedHashFunctionId: string = HASH_ALGORITHM_IDS.blake2b256;
 
     /** When false, skip automatic hash verification when adding a source. */
@@ -110,13 +111,13 @@
         }
     }
 
-    // Reactive value for the current hash from the store
-    $: currentHashValue = (hash ? $hash : "") || "";
+    // Reactive value for the current hash from the optional fixed prop or the store
+    $: currentHashValue = fixed_hash_id.trim() || ((hash ? $hash : "") || "");
     $: isHashFixed = currentHashValue !== "";
 
-    // Sync newFileHash with store
-    $: if (hash && $hash) {
-        newFileHash = $hash;
+    // Sync newFileHash with the active fixed hash source
+    $: if (currentHashValue) {
+        newFileHash = currentHashValue;
     }
 
     // Check if the source entry has a URL
@@ -177,6 +178,10 @@
     });
 
     function updateHash(val: string) {
+        if (fixed_hash_id.trim()) {
+            newFileHash = currentHashValue;
+            return;
+        }
         newFileHash = val;
         if (hash) {
             hash.set(val);

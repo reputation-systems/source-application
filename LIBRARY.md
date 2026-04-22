@@ -59,6 +59,7 @@ Form for adding new file sources to the network. It supports two modes: a "free"
 - `profile: ReputationProof | null` - Current user's profile (required to enable adding).
 - `explorerUri: string` - Ergo Explorer API endpoint.
 - `source_explorer_url: string` - Base URL for the source explorer (used for deep links).
+- `fixed_hash_id?: string` - Optional. Fixed file hash. When provided, the component enters fixed mode and the user cannot edit the anchor hash.
 - `hash?: Writable<string>` - Optional. A Svelte writable store for the file hash.
 - `fixedHashFunctionId?: string` - Optional. Hash algorithm ID for the fixed anchor hash. Use the canonical `HASH("")` value. In fixed mode the default is Blake2b-256: `0e5751c026e543b2e8ab2eb06099daa1d1e5df47778f7787faab45cdf12fe3a8`.
 - `title?: string` - Optional. Custom title for the component (default: "Add New File Source").
@@ -66,8 +67,9 @@ Form for adding new file sources to the network. It supports two modes: a "free"
 
 **Behavior:**
 - **Always Visible**: The current hash is always displayed at the top of the component.
-- **Fixed Hash Mode** (when `hash` store has a value):
+- **Fixed Hash Mode** (when `fixed_hash_id` is provided, or when the `hash` store has a value):
     - Manual hash input and file upload fields are hidden.
+    - `fixed_hash_id` takes precedence over the `hash` store if both are provided.
     - The anchor hash function comes from `fixedHashFunctionId` instead of the form UI.
     - The "Compute hash from URL" button is hidden.
     - When clicking "Add Source", the component automatically downloads the file from the URL, calculates its hash, and verifies it matches the fixed hash before proceeding.
@@ -99,6 +101,7 @@ Form for adding new file sources to the network. It supports two modes: a "free"
   {profile}
   {explorerUri}
   {source_explorer_url}
+  fixed_hash_id="abc123..."
   hash={fileHashStore}
   fixedHashFunctionId="0e5751c026e543b2e8ab2eb06099daa1d1e5df47778f7787faab45cdf12fe3a8"
   title="Add Download Link"
