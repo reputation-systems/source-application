@@ -28,7 +28,7 @@ export let hashValidationEnabled = false;
 export let title = "Add New File Source";
 let className = "";
 export { className as class };
-let isHashFixed = fixedHashFunctionId !== "";
+let isHashFixed = !!fixedHashFunctionId?.trim();
 $:
   hasProfile = profile !== null && (profile.current_boxes?.length ?? 0) > 0;
 const baseClasses = "bg-card p-6 rounded-lg border";
@@ -54,7 +54,7 @@ let fileHashValidationError = null;
 let contentHashValidationError = null;
 let rawHashValidationError = null;
 $:
-  effectiveHashFunctionId = isHashFixed ? normalizeHashAlgorithmId(fixedHashFunctionId.trim() || HASH_ALGORITHM_IDS.blake2b256) : hashSelectValue === "__custom__" ? customHashFunctionId : hashSelectValue;
+  effectiveHashFunctionId = isHashFixed ? normalizeHashAlgorithmId(fixedHashFunctionId?.trim() || HASH_ALGORITHM_IDS.blake2b256) : hashSelectValue === "__custom__" ? customHashFunctionId : hashSelectValue;
 $: {
   if (newFileHash.trim() && effectiveHashFunctionId) {
     fileHashValidationError = validateHash(newFileHash.trim(), effectiveHashFunctionId);
@@ -84,7 +84,7 @@ $: {
 $:
   currentHashValue = fixed_hash_id.trim() || ((hash ? $hash : "") || "");
 $:
-  isHashFixed = currentHashValue !== "" || fixedHashFunctionId !== null;
+  isHashFixed = currentHashValue !== "" || !!fixedHashFunctionId?.trim();
 $:
   if (currentHashValue) {
     newFileHash = currentHashValue;

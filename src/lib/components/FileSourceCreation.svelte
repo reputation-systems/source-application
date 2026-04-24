@@ -27,7 +27,7 @@
     export let onSourceAdded: ((txId: string) => void) | null = null;
     export let hash: Writable<string> | undefined = undefined;
     export let fixed_hash_id: string = "";
-    export let fixedHashFunctionId: string|null = null;
+    export let fixedHashFunctionId: string | null = null;
 
     /** When false, skip automatic hash verification when adding a source. */
     export let hashValidationEnabled: boolean = false;
@@ -36,7 +36,7 @@
     let className: string = "";
     export { className as class };
 
-    let isHashFixed = fixedHashFunctionId !== "";
+    let isHashFixed = !!fixedHashFunctionId?.trim();
 
     $: hasProfile = profile !== null && (profile.current_boxes?.length ?? 0) > 0;
     const baseClasses = "bg-card p-6 rounded-lg border";
@@ -77,7 +77,7 @@
     let rawHashValidationError: string | null = null;
 
     $: effectiveHashFunctionId = isHashFixed
-        ? normalizeHashAlgorithmId(fixedHashFunctionId.trim() || HASH_ALGORITHM_IDS.blake2b256)
+        ? normalizeHashAlgorithmId(fixedHashFunctionId?.trim() || HASH_ALGORITHM_IDS.blake2b256)
         : (hashSelectValue === "__custom__" ? customHashFunctionId : hashSelectValue);
 
     // Validate file hash when it changes
@@ -115,7 +115,7 @@
 
     // Reactive value for the current hash from the optional fixed prop or the store
     $: currentHashValue = fixed_hash_id.trim() || ((hash ? $hash : "") || "");
-    $: isHashFixed = currentHashValue !== "" || fixedHashFunctionId !== null;
+    $: isHashFixed = currentHashValue !== "" || !!fixedHashFunctionId?.trim();
 
     // Sync newFileHash with the active fixed hash source
     $: if (currentHashValue) {
