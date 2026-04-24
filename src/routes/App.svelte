@@ -336,7 +336,7 @@
 			// Pass empty array to accept any profile type (JUDGE, PROFILE, etc.)
 			const proofs = await fetchAllUserProfiles(
 				get(explorer_uri),
-				true,
+				null,
 				[],
 				types,
 			);
