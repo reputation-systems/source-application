@@ -23,11 +23,12 @@ export let source_explorer_url;
 export let onSourceAdded = null;
 export let hash = void 0;
 export let fixed_hash_id = "";
-export let fixedHashFunctionId = HASH_ALGORITHM_IDS.blake2b256;
+export let fixedHashFunctionId = null;
 export let hashValidationEnabled = false;
 export let title = "Add New File Source";
 let className = "";
 export { className as class };
+let isHashFixed = fixedHashFunctionId !== "";
 $:
   hasProfile = profile !== null && (profile.current_boxes?.length ?? 0) > 0;
 const baseClasses = "bg-card p-6 rounded-lg border";
@@ -83,7 +84,7 @@ $: {
 $:
   currentHashValue = fixed_hash_id.trim() || ((hash ? $hash : "") || "");
 $:
-  isHashFixed = currentHashValue !== "";
+  isHashFixed = currentHashValue !== "" || fixedHashFunctionId !== null;
 $:
   if (currentHashValue) {
     newFileHash = currentHashValue;

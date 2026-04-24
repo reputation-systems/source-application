@@ -9,7 +9,7 @@ declare const __propDef: {
         onSourceAdded?: ((txId: string) => void) | null;
         hash?: Writable<string> | undefined;
         fixed_hash_id?: string;
-        fixedHashFunctionId?: string;
+        fixedHashFunctionId?: string | null;
         /** When false, skip automatic hash verification when adding a source. */ hashValidationEnabled?: boolean;
         title?: string;
         class?: string;

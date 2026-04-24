@@ -27,7 +27,7 @@
     export let onSourceAdded: ((txId: string) => void) | null = null;
     export let hash: Writable<string> | undefined = undefined;
     export let fixed_hash_id: string = "";
-    export let fixedHashFunctionId: string = HASH_ALGORITHM_IDS.blake2b256;
+    export let fixedHashFunctionId: string|null = null;
 
     /** When false, skip automatic hash verification when adding a source. */
     export let hashValidationEnabled: boolean = false;
@@ -35,6 +35,8 @@
     export let title: string = "Add New File Source";
     let className: string = "";
     export { className as class };
+
+    let isHashFixed = fixedHashFunctionId !== "";
 
     $: hasProfile = profile !== null && (profile.current_boxes?.length ?? 0) > 0;
     const baseClasses = "bg-card p-6 rounded-lg border";
@@ -113,7 +115,7 @@
 
     // Reactive value for the current hash from the optional fixed prop or the store
     $: currentHashValue = fixed_hash_id.trim() || ((hash ? $hash : "") || "");
-    $: isHashFixed = currentHashValue !== "";
+    $: isHashFixed = currentHashValue !== "" || fixedHashFunctionId !== null;
 
     // Sync newFileHash with the active fixed hash source
     $: if (currentHashValue) {
