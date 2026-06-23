@@ -14,16 +14,13 @@
         LayoutGrid,
         Users,
         Search,
-        ThumbsUp,
-        AlertTriangle,
+        ThumbsUp
     } from "lucide-svelte";
     import DownloadSourceCard from "./DownloadSourceCard.svelte";
     import ProfileSourceGroup from "./ProfileSourceGroup.svelte";
     import Timeline from "./Timeline.svelte";
     import { type ReputationProof } from "$lib/ergo/object";
     import { type CachedData } from "$lib/ergo/sourceObject";
-    import { Button } from "$lib/components/ui/button/index.js";
-    import { Input } from "$lib/components/ui/input/index.js";
     import { Label } from "$lib/components/ui/label/index.js";
 
     export let fileHash: string;
@@ -40,20 +37,6 @@
     export { className as class };
 
     let viewMode: "source" | "profile" | "timeline" = "source";
-
-    // Add Source State
-    let newSourceUrl = "";
-    let isAddingSource = false;
-    let addError: string | null = null;
-
-    // Helper to extract data from CachedData
-    function getInvalidations(boxId: string): InvalidFileSource[] {
-        return invalidFileSources[boxId]?.data || [];
-    }
-
-    function getUnavailabilities(url: string): UnavailableSource[] {
-        return unavailableSources[url]?.data || [];
-    }
 
     $: groupedBySource = groupByDownloadSource(
         sources,
@@ -118,38 +101,6 @@
 
         return events;
     })();
-
-    async function handleAddSource() {
-        if (!newSourceUrl.trim() || !profile) return;
-
-        isAddingSource = true;
-        addError = null;
-        try {
-            // Create a simple source entry with just the URL (quick add)
-            const entry: SourceEntry = {
-                hashFunctionId: "",
-                contentFormat: "",
-                contentHash: "",
-                rawFormat: "",
-                urlLink: newSourceUrl.trim()
-            };
-
-            const tx = await addFileSource(
-                fileHash.trim(),
-                "", // hashFunctionId
-                entry,
-                profile,
-                explorerUri,
-            );
-            console.log("Source added, tx:", tx);
-            newSourceUrl = "";
-        } catch (err: any) {
-            console.error("Error adding source:", err);
-            addError = err?.message || "Failed to add source";
-        } finally {
-            isAddingSource = false;
-        }
-    }
 </script>
 
 <div class={className}>
@@ -176,57 +127,6 @@
                 <p class="text-muted-foreground">
                     No sources found for this hash
                 </p>
-            </div>
-
-            <div class="max-w-md mx-auto text-left py-6">
-                <h4 class="font-semibold mb-6 text-lg">Add First Source</h4>
-
-                <div
-                    class="text-xs text-amber-800 dark:text-amber-500/80 mb-6 flex gap-2 items-start"
-                >
-                    <AlertTriangle class="w-4 h-4 flex-shrink-0 mt-0.5" />
-                    <p>
-                        Verify URLs before adding. They will be immutable on the
-                        blockchain.
-                    </p>
-                </div>
-
-                {#if addError}
-                    <div
-                        class="bg-red-500/10 border border-red-600 dark:border-red-500/20 p-3 rounded-lg mb-4"
-                    >
-                        <p class="text-xs text-red-800 dark:text-red-200">{addError}</p>
-                    </div>
-                {/if}
-
-                <div class="space-y-4">
-                    <div>
-                        <Label for="new-source-url">Source URL</Label>
-                        <Input
-                            id="new-source-url"
-                            bind:value={newSourceUrl}
-                            placeholder="https://example.com/file.zip"
-                            class="font-mono text-sm bg-background"
-                            disabled={!profile || isAddingSource}
-                        />
-                    </div>
-
-                    <Button
-                        on:click={handleAddSource}
-                        disabled={!profile ||
-                            !newSourceUrl.trim() ||
-                            isAddingSource}
-                        class="w-full"
-                    >
-                        {isAddingSource ? "Adding Source..." : "Add Source"}
-                    </Button>
-
-                    {#if !profile}
-                        <p class="text-xs text-center text-muted-foreground">
-                            You must have a profile to add sources.
-                        </p>
-                    {/if}
-                </div>
             </div>
         </div>
     {:else}
