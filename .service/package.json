@@ -14,6 +14,6 @@
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.29.0",
     "@noble/hashes": "^1.4.0",
-    "reputation-system": "github:agenticaihome/reputation-system#fix/seed-signer-derivation"
+    "reputation-system": "github:reputation-systems/reputation-system"
   }
 }
