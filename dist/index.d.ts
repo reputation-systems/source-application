@@ -5,7 +5,7 @@ export { groupByDownloadSource, groupByProfile, calculateProfileTrust, aggregate
 export type { ReputationProof, RPBox, TypeNFT, ApiBox } from './ergo/object';
 export { PROFILE_TYPE_NFT_ID, PROFILE_TOTAL_SUPPLY, FILE_SOURCE_TYPE_NFT_ID, INVALID_FILE_SOURCE_TYPE_NFT_ID, UNAVAILABLE_SOURCE_TYPE_NFT_ID, PROFILE_OPINION_TYPE_NFT_ID, } from './ergo/envs';
 export { hashValidationEnabled } from './ergo/store';
-export { HASH_OPTIONS, SEARCH_HASH_ALGORITHMS } from './ergo/hashUtils';
+export { HASH_ALGORITHM_IDS, HASH_OPTIONS, SEARCH_HASH_ALGORITHMS, normalizeHashAlgorithmId } from './ergo/hashUtils';
 export { default as ProfileCard } from './components/ProfileCard.svelte';
 export { default as FileSourceCreation } from './components/FileSourceCreation.svelte';
 export { default as FileSourceCard } from './components/FileSourceCard.svelte';

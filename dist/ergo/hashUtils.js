@@ -6,13 +6,41 @@
 import { sha256 } from '@noble/hashes/sha256';
 import { sha3_256, keccak_256 } from '@noble/hashes/sha3';
 import { blake2b } from '@noble/hashes/blake2b';
-/** Known hash algorithm IDs used in the application */
-export const HASH_ALGORITHMS = [
-    { label: "SHA3-256", value: "sha3_256" },
-    { label: "Blake2b", value: "blake2b" },
-    { label: "SHA-256", value: "sha256" },
-    { label: "Keccak-256", value: "keccak256" },
+/** Canonical algorithm IDs are defined as HASH(EMPTY_INPUT). */
+export const HASH_ALGORITHM_IDS = {
+    sha3_256: 'a7ffc6f8bf1ed76651c14756a061d662f580ff4de43b49fa82d80a4b80f8434a',
+    blake2b256: '0e5751c026e543b2e8ab2eb06099daa1d1e5df47778f7787faab45cdf12fe3a8',
+    sha256: 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855',
+    keccak256: 'c5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470',
+};
+const HASH_ALGORITHM_DEFINITIONS = [
+    {
+        key: 'sha3_256',
+        label: 'SHA3-256',
+        value: HASH_ALGORITHM_IDS.sha3_256,
+        aliases: ['sha3_256'],
+    },
+    {
+        key: 'blake2b256',
+        label: 'Blake2b-256',
+        value: HASH_ALGORITHM_IDS.blake2b256,
+        aliases: ['blake2b', 'blake2b256'],
+    },
+    {
+        key: 'sha256',
+        label: 'SHA-256',
+        value: HASH_ALGORITHM_IDS.sha256,
+        aliases: ['sha256'],
+    },
+    {
+        key: 'keccak256',
+        label: 'Keccak-256',
+        value: HASH_ALGORITHM_IDS.keccak256,
+        aliases: ['keccak256'],
+    },
 ];
+/** Known hash algorithm IDs used in the application */
+export const HASH_ALGORITHMS = HASH_ALGORITHM_DEFINITIONS.map(({ label, value }) => ({ label, value }));
 /** All algorithm values including custom */
 export const HASH_OPTIONS = [
     ...HASH_ALGORITHMS,
@@ -23,19 +51,34 @@ export const SEARCH_HASH_ALGORITHMS = HASH_ALGORITHMS;
 function uint8ArrayToHex(array) {
     return [...array].map(x => x.toString(16).padStart(2, '0')).join('');
 }
+function getHashAlgorithmDefinition(algorithmId) {
+    const trimmed = algorithmId.trim();
+    const normalized = trimmed.toLowerCase();
+    return HASH_ALGORITHM_DEFINITIONS.find(({ value, aliases }) => value === trimmed ||
+        value === normalized ||
+        aliases.includes(normalized));
+}
+/**
+ * Normalize supported aliases to canonical on-chain identifiers HASH(EMPTY_INPUT).
+ */
+export function normalizeHashAlgorithmId(algorithmId) {
+    const trimmed = algorithmId.trim();
+    return getHashAlgorithmDefinition(trimmed)?.value || trimmed;
+}
 /**
  * Compute a hash of the given data using the specified algorithm.
  * @returns hex string of the hash, or null if algorithm is unknown/custom
  */
 export function computeHash(data, algorithmId) {
-    switch (algorithmId) {
+    const definition = getHashAlgorithmDefinition(algorithmId);
+    switch (definition?.key) {
         case 'sha256':
             return uint8ArrayToHex(sha256(data));
         case 'sha3_256':
             return uint8ArrayToHex(sha3_256(data));
         case 'keccak256':
             return uint8ArrayToHex(keccak_256(data));
-        case 'blake2b':
+        case 'blake2b256':
             // Default to 256-bit (32 bytes) output
             return uint8ArrayToHex(blake2b(data, { dkLen: 32 }));
         default:
@@ -55,7 +98,7 @@ export function validateHash(hash, algorithmId) {
     if (!/^[0-9a-fA-F]+$/.test(trimmed)) {
         return 'Hash must contain only hexadecimal characters (0-9, a-f)';
     }
-    switch (algorithmId) {
+    switch (getHashAlgorithmDefinition(algorithmId)?.key) {
         case 'sha3_256':
         case 'sha256':
         case 'keccak256':
@@ -63,9 +106,9 @@ export function validateHash(hash, algorithmId) {
                 return `${getAlgorithmLabel(algorithmId)} hash must be exactly 64 hex characters (256-bit). Got ${trimmed.length}.`;
             }
             break;
-        case 'blake2b':
+        case 'blake2b256':
             if (trimmed.length !== 64 && trimmed.length !== 128) {
-                return `Blake2b hash must be 64 hex characters (256-bit) or 128 hex characters (512-bit). Got ${trimmed.length}.`;
+                return `Blake2b-256 hash must be 64 hex characters (256-bit) or 128 hex characters (512-bit). Got ${trimmed.length}.`;
             }
             break;
         case '__custom__':
@@ -81,7 +124,7 @@ export function validateHash(hash, algorithmId) {
  * Get the human-readable label for an algorithm ID.
  */
 export function getAlgorithmLabel(algorithmId) {
-    const found = HASH_OPTIONS.find(o => o.value === algorithmId);
+    const found = getHashAlgorithmDefinition(algorithmId);
     return found ? found.label : algorithmId;
 }
 /**
@@ -97,7 +140,8 @@ export function getAlgorithmLabel(algorithmId) {
  * @throws if algorithm is custom/unknown, fetch fails, etc.
  */
 export async function downloadAndHash(url, algorithmId, isChunked = false, onProgress) {
-    if (algorithmId === '__custom__' || !HASH_ALGORITHMS.some(a => a.value === algorithmId)) {
+    const normalizedAlgorithmId = normalizeHashAlgorithmId(algorithmId);
+    if (normalizedAlgorithmId === '__custom__' || !getHashAlgorithmDefinition(normalizedAlgorithmId)) {
         throw new Error('Cannot verify: custom hash algorithm');
     }
     let data;
@@ -145,7 +189,7 @@ export async function downloadAndHash(url, algorithmId, isChunked = false, onPro
         const buffer = await response.arrayBuffer();
         data = new Uint8Array(buffer);
     }
-    const result = computeHash(data, algorithmId);
+    const result = computeHash(data, normalizedAlgorithmId);
     if (result === null) {
         throw new Error(`Cannot verify: unsupported hash algorithm "${algorithmId}"`);
     }

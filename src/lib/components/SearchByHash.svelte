@@ -19,7 +19,7 @@
     import DownloadSourceCard from "./DownloadSourceCard.svelte";
     import ProfileSourceGroup from "./ProfileSourceGroup.svelte";
     import Timeline from "./Timeline.svelte";
-    import { SEARCH_HASH_ALGORITHMS } from "$lib/ergo/hashUtils";
+    import { normalizeHashAlgorithmId, SEARCH_HASH_ALGORITHMS } from "$lib/ergo/hashUtils";
 
     export let hasProfile = false;
     export let reputationProof: ReputationProof | null = null;
@@ -46,7 +46,7 @@
         const algoParam = $page.url.searchParams.get("algorithm");
         if (searchParam && searchParam !== searchHash) {
             searchHash = searchParam;
-            if (algoParam) searchAlgorithm = algoParam;
+            if (algoParam) searchAlgorithm = normalizeHashAlgorithmId(algoParam);
             onSearch(searchHash, searchAlgorithm || undefined);
         }
     }
@@ -77,7 +77,9 @@
 
     // Filter sources by selected algorithm if set
     $: filteredSources = searchAlgorithm
-        ? sources.filter(s => s.hashFunctionId === searchAlgorithm)
+        ? sources.filter(
+            (s) => normalizeHashAlgorithmId(s.hashFunctionId) === normalizeHashAlgorithmId(searchAlgorithm),
+        )
         : sources;
 
     $: timelineEvents = (() => {

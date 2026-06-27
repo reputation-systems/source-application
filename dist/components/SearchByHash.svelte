@@ -14,7 +14,7 @@ import { Search, ThumbsUp, LayoutGrid, Users } from "lucide-svelte";
 import DownloadSourceCard from "./DownloadSourceCard.svelte";
 import ProfileSourceGroup from "./ProfileSourceGroup.svelte";
 import Timeline from "./Timeline.svelte";
-import { SEARCH_HASH_ALGORITHMS } from "../ergo/hashUtils";
+import { normalizeHashAlgorithmId, SEARCH_HASH_ALGORITHMS } from "../ergo/hashUtils";
 export let hasProfile = false;
 export let reputationProof = null;
 export let explorerUri;
@@ -35,7 +35,7 @@ $: {
   if (searchParam && searchParam !== searchHash) {
     searchHash = searchParam;
     if (algoParam)
-      searchAlgorithm = algoParam;
+      searchAlgorithm = normalizeHashAlgorithmId(algoParam);
     onSearch(searchHash, searchAlgorithm || void 0);
   }
 }
@@ -65,7 +65,9 @@ $:
 $:
   totalThumbsUp = sources.length;
 $:
-  filteredSources = searchAlgorithm ? sources.filter((s) => s.hashFunctionId === searchAlgorithm) : sources;
+  filteredSources = searchAlgorithm ? sources.filter(
+    (s) => normalizeHashAlgorithmId(s.hashFunctionId) === normalizeHashAlgorithmId(searchAlgorithm)
+  ) : sources;
 $:
   timelineEvents = (() => {
     const events = [];

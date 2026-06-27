@@ -10,7 +10,7 @@ export { PROFILE_TYPE_NFT_ID, PROFILE_TOTAL_SUPPLY, FILE_SOURCE_TYPE_NFT_ID, INV
 // ===== SETTINGS STORES =====
 export { hashValidationEnabled } from './ergo/store';
 // ===== HASH UTILITIES =====
-export { HASH_OPTIONS, SEARCH_HASH_ALGORITHMS } from './ergo/hashUtils';
+export { HASH_ALGORITHM_IDS, HASH_OPTIONS, SEARCH_HASH_ALGORITHMS, normalizeHashAlgorithmId } from './ergo/hashUtils';
 // ===== SVELTE COMPONENTS =====
 export { default as ProfileCard } from './components/ProfileCard.svelte';
 export { default as FileSourceCreation } from './components/FileSourceCreation.svelte';

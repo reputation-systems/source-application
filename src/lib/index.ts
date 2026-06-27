@@ -77,8 +77,10 @@ export {
 
 // ===== HASH UTILITIES =====
 export {
+    HASH_ALGORITHM_IDS,
     HASH_OPTIONS,
-    SEARCH_HASH_ALGORITHMS
+    SEARCH_HASH_ALGORITHMS,
+    normalizeHashAlgorithmId
 } from './ergo/hashUtils';
 
 // ===== SVELTE COMPONENTS =====

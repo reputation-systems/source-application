@@ -10,20 +10,30 @@ import { AlertTriangle, Download, Upload, Loader2 } from "lucide-svelte";
 import {} from "../ergo/object";
 import { downloadAndHash } from "../ergo/hashUtils";
 import {} from "svelte/store";
-import { HASH_OPTIONS, validateHash } from "../ergo/hashUtils";
+import {
+  HASH_ALGORITHM_IDS,
+  HASH_OPTIONS,
+  getAlgorithmLabel,
+  normalizeHashAlgorithmId,
+  validateHash
+} from "../ergo/hashUtils";
 export let profile = null;
 export let explorerUri;
 export let source_explorer_url;
 export let onSourceAdded = null;
 export let hash = void 0;
+export let fixed_hash_id = "";
+export let fixedHashFunctionId = null;
 export let hashValidationEnabled = false;
 export let title = "Add New File Source";
 let className = "";
 export { className as class };
-const hasProfile = profile !== null;
+let isHashFixed = !!fixedHashFunctionId?.trim();
+$:
+  hasProfile = profile !== null && (profile.current_boxes?.length ?? 0) > 0;
 const baseClasses = "bg-card p-6 rounded-lg border";
 let newFileHash = "";
-let hashFunctionId = "";
+let effectiveHashFunctionId = "";
 let isAddingSource = false;
 let addError = null;
 let isCalculatingHash = false;
@@ -43,16 +53,11 @@ let rawFormatType = "extension";
 let fileHashValidationError = null;
 let contentHashValidationError = null;
 let rawHashValidationError = null;
+$:
+  effectiveHashFunctionId = isHashFixed ? normalizeHashAlgorithmId(fixedHashFunctionId?.trim() || HASH_ALGORITHM_IDS.blake2b256) : hashSelectValue === "__custom__" ? customHashFunctionId : hashSelectValue;
 $: {
-  if (hashSelectValue === "__custom__") {
-    hashFunctionId = customHashFunctionId;
-  } else {
-    hashFunctionId = hashSelectValue;
-  }
-}
-$: {
-  if (newFileHash.trim() && hashSelectValue && hashSelectValue !== "__custom__") {
-    fileHashValidationError = validateHash(newFileHash.trim(), hashSelectValue);
+  if (newFileHash.trim() && effectiveHashFunctionId) {
+    fileHashValidationError = validateHash(newFileHash.trim(), effectiveHashFunctionId);
   } else if (newFileHash.trim() && hashSelectValue === "__custom__" && customHashFunctionId) {
     fileHashValidationError = validateHash(newFileHash.trim(), "__custom__");
   } else {
@@ -60,8 +65,11 @@ $: {
   }
 }
 $: {
-  if (entryContentHash.trim() && hashSelectValue && hashSelectValue !== "__custom__") {
-    contentHashValidationError = validateHash(entryContentHash.trim(), hashSelectValue);
+  if (entryContentHash.trim() && (entryHashFunctionId.trim() || effectiveHashFunctionId)) {
+    contentHashValidationError = validateHash(
+      entryContentHash.trim(),
+      entryHashFunctionId.trim() || effectiveHashFunctionId
+    );
   } else {
     contentHashValidationError = null;
   }
@@ -74,12 +82,12 @@ $: {
   }
 }
 $:
-  currentHashValue = (hash ? $hash : "") || "";
+  currentHashValue = fixed_hash_id.trim() || ((hash ? $hash : "") || "");
 $:
-  isHashFixed = currentHashValue !== "";
+  isHashFixed = currentHashValue !== "" || !!fixedHashFunctionId?.trim();
 $:
-  if (hash && $hash) {
-    newFileHash = $hash;
+  if (currentHashValue) {
+    newFileHash = currentHashValue;
   }
 $:
   hasValidEntry = entryUrlLink.trim() !== "";
@@ -99,9 +107,12 @@ onMount(() => {
     updateHash(pFileHash);
   }
   if (pHashFunctionId) {
-    const knownOption = HASH_OPTIONS.find((o) => o.value === pHashFunctionId);
+    const normalizedHashFunctionId = normalizeHashAlgorithmId(pHashFunctionId);
+    const knownOption = HASH_OPTIONS.find(
+      (o) => o.value === normalizedHashFunctionId
+    );
     if (knownOption && knownOption.value !== "__custom__") {
-      hashSelectValue = pHashFunctionId;
+      hashSelectValue = knownOption.value;
     } else {
       hashSelectValue = "__custom__";
       customHashFunctionId = pHashFunctionId;
@@ -126,6 +137,10 @@ onMount(() => {
   }
 });
 function updateHash(val) {
+  if (fixed_hash_id.trim()) {
+    newFileHash = currentHashValue;
+    return;
+  }
   newFileHash = val;
   if (hash) {
     hash.set(val);
@@ -135,7 +150,7 @@ async function calculateHashFromUrl() {
   const url = entryUrlLink.trim();
   if (!url)
     return;
-  const algorithmId = entryHashFunctionId || hashFunctionId;
+  const algorithmId = entryHashFunctionId || effectiveHashFunctionId;
   if (!algorithmId || algorithmId === "__custom__") {
     hashError = "Cannot verify: select a known hash algorithm first";
     return;
@@ -162,7 +177,7 @@ async function handleFileUpload(event) {
   const input = event.target;
   if (!input.files || input.files.length === 0)
     return;
-  const algorithmId = entryHashFunctionId || hashFunctionId;
+  const algorithmId = entryHashFunctionId || effectiveHashFunctionId;
   if (!algorithmId || algorithmId === "__custom__") {
     hashError = "Cannot verify: select a known hash algorithm first";
     return;
@@ -195,7 +210,7 @@ async function handleAddSource() {
     newFileHash = currentHashValue;
   }
   if (hashValidationEnabled && isHashFixed && entryUrlLink.trim()) {
-    const algorithmId = entryHashFunctionId || hashFunctionId;
+    const algorithmId = entryHashFunctionId || effectiveHashFunctionId;
     if (!algorithmId || algorithmId === "__custom__") {
       hashError = "Cannot verify: select a known hash algorithm first";
       return;
@@ -227,7 +242,9 @@ async function handleAddSource() {
     const finalRawFormat = contentEqualsRaw ? entryContentFormat.trim() : entryRawFormat.trim();
     const finalRawHash = contentEqualsRaw ? entryContentHash.trim() : "";
     const entry = {
-      hashFunctionId: entryHashFunctionId.trim(),
+      hashFunctionId: normalizeHashAlgorithmId(
+        entryHashFunctionId.trim() || effectiveHashFunctionId.trim()
+      ),
       contentFormat: entryContentFormat.trim(),
       contentHash: entryContentHash.trim(),
       rawFormat: finalRawFormat,
@@ -236,7 +253,7 @@ async function handleAddSource() {
     };
     const tx = await addFileSource(
       newFileHash.trim(),
-      hashFunctionId.trim(),
+      effectiveHashFunctionId.trim(),
       entry,
       profile,
       explorerUri
@@ -245,7 +262,6 @@ async function handleAddSource() {
     if (!isHashFixed) {
       updateHash("");
     }
-    hashFunctionId = "";
     hashSelectValue = "";
     customHashFunctionId = "";
     entryHashFunctionId = "";
@@ -367,29 +383,42 @@ async function handleAddSource() {
 
         <div>
             <Label for="hash-function-id">Hash Function ID</Label>
-            <select
-                id="hash-function-id"
-                bind:value={hashSelectValue}
-                class="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 font-mono"
-                disabled={!hasProfile || isCalculatingHash}
-            >
-                <option value="">Select hash function...</option>
-                {#each HASH_OPTIONS as opt}
-                    <option value={opt.value}>{opt.label}{opt.value !== "__custom__" ? ` (${opt.value})` : ""}</option>
-                {/each}
-            </select>
-            {#if hashSelectValue === "__custom__"}
+            {#if isHashFixed}
                 <Input
                     type="text"
-                    bind:value={customHashFunctionId}
-                    placeholder="Enter custom hash function identifier"
-                    class="font-mono text-sm mt-2"
-                    disabled={!hasProfile || isCalculatingHash}
+                    id="hash-function-id"
+                    value={effectiveHashFunctionId}
+                    class="font-mono text-sm"
+                    disabled
                 />
+                <p class="text-xs text-muted-foreground mt-1">
+                    Fixed Hash Mode uses `{effectiveHashFunctionId}` ({getAlgorithmLabel(effectiveHashFunctionId)}) for the anchor hash.
+                </p>
+            {:else}
+                <select
+                    id="hash-function-id"
+                    bind:value={hashSelectValue}
+                    class="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 font-mono"
+                    disabled={!hasProfile || isCalculatingHash}
+                >
+                    <option value="">Select hash function...</option>
+                    {#each HASH_OPTIONS as opt}
+                        <option value={opt.value}>{opt.label}{opt.value !== "__custom__" ? ` (${opt.value})` : ""}</option>
+                    {/each}
+                </select>
+                {#if hashSelectValue === "__custom__"}
+                    <Input
+                        type="text"
+                        bind:value={customHashFunctionId}
+                        placeholder="Enter custom hash function identifier"
+                        class="font-mono text-sm mt-2"
+                        disabled={!hasProfile || isCalculatingHash}
+                    />
+                {/if}
+                <p class="text-xs text-muted-foreground mt-1">
+                    Identifies the hash algorithm used. Per convention: output of HASH(EMPTY_INPUT).
+                </p>
             {/if}
-            <p class="text-xs text-muted-foreground mt-1">
-                Identifies the hash algorithm used. Per convention: output of HASH(EMPTY_INPUT).
-            </p>
         </div>
 
         <!-- Source Entry -->
@@ -457,7 +486,7 @@ async function handleAddSource() {
                             type="text"
                             id="entry-hash-fn"
                             bind:value={entryHashFunctionId}
-                            placeholder="Hash function identifier"
+                            placeholder={`Optional. Defaults to ${effectiveHashFunctionId}`}
                             class="font-mono text-xs"
                             disabled={!hasProfile}
                         />

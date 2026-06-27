@@ -6,7 +6,7 @@ import { Input } from "./ui/input/index.js";
 import { Label } from "./ui/label/index.js";
 import { Textarea } from "./ui/textarea";
 import { AlertTriangle } from "lucide-svelte";
-import { HASH_OPTIONS, validateHash } from "../ergo/hashUtils";
+import { HASH_OPTIONS, normalizeHashAlgorithmId, validateHash } from "../ergo/hashUtils";
 export let hasProfile = false;
 export let profile = null;
 export let explorerUri = "";
@@ -17,7 +17,7 @@ let addError = null;
 let hashSelectValue = "";
 let customHashFunctionId = "";
 $:
-  effectiveAlgorithm = hashSelectValue === "__custom__" ? customHashFunctionId : hashSelectValue;
+  effectiveAlgorithm = hashSelectValue === "__custom__" ? customHashFunctionId : normalizeHashAlgorithmId(hashSelectValue);
 let fileHashValidationError = null;
 $: {
   if (newFileHash.trim() && hashSelectValue) {
@@ -35,7 +35,7 @@ async function handleAddSource() {
   addError = null;
   try {
     const entry = {
-      hashFunctionId: "",
+      hashFunctionId: normalizeHashAlgorithmId(effectiveAlgorithm),
       contentFormat: "",
       contentHash: "",
       rawFormat: "",
