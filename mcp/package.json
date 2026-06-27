@@ -1,0 +1,20 @@
+{
+  "name": "source-application-mcp",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Full-surface MCP server (stdio) for the Source Application on-chain file-source registry — reads, pure helpers, and signer-backed writes.",
+  "main": "server.mjs",
+  "scripts": {
+    "mcp": "node server.mjs",
+    "start": "node server.mjs"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "@noble/hashes": "^1.4.0",
+    "reputation-system": "github:agenticaihome/reputation-system#fix/seed-signer-derivation"
+  }
+}
