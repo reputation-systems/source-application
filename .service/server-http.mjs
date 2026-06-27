@@ -26,10 +26,13 @@ import {
   ListToolsRequestSchema
 } from '@modelcontextprotocol/sdk/types.js';
 
-import { TOOLS, HANDLERS } from './tools.mjs';
-import * as core from './core.mjs';
-import * as writes from './writes.mjs';
-import { signerMode, EXPLORER_API } from './lib.mjs';
+// Shared registry lives ONCE in ../mcp (no duplicated copies in .service). The
+// Dockerfile preserves this sibling layout under /app (/app/service + /app/mcp)
+// so `../mcp` resolves identically in local dev and in the sealed microVM.
+import { TOOLS, HANDLERS } from '../mcp/tools.mjs';
+import * as core from '../mcp/core.mjs';
+import * as writes from '../mcp/writes.mjs';
+import { signerMode, EXPLORER_API } from '../mcp/lib.mjs';
 
 // ── MCP server factory (stateless: one per request) ─────────────────────────
 

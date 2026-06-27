@@ -6,21 +6,51 @@ the Source Application on-chain file-source registry. Any MCP-aware client
 
 ```bash
 npm install
+npm run build:mcp    # bundle the read surface from src/ (regenerate the bundle)
 npm run mcp          # speaks MCP over stdio
 ```
+
+## Reads reuse `src/` — they are not re-implemented
+
+The read layer (Explorer box queries, R9 parsing, the `fetch*` reads, the pure
+aggregation helpers, the hash helpers, and the Type NFT ids) lives **once**, in
+`src/lib/ergo/*`. `npm run build:mcp` runs [esbuild](https://esbuild.github.io)
+over `_entry.mjs` to compile that TypeScript into a single Node-loadable ESM
+module, `_generated/lib.bundle.mjs`. `core.mjs` is then a thin adapter that
+re-exports the bundle and defaults `explorerUri`. Change a read in `src/`, rerun
+`build:mcp`, and it flows through here, the stdio server, and the `.service`
+alike — no second copy to drift.
+
+The published `dist/` is not bare-Node loadable (extensionless relative imports,
+the `reputation-system` Svelte entry, a `dompurify` DOM dep), so the build
+rewrites those browser-only edges:
+
+| Import | Resolved to | Why |
+|--------|-------------|-----|
+| `reputation-system` | `reputation-system/node` (kept **external**) | the headless entry exporting `searchBoxes` / `getTimestampFromBlockId`; external so reads resolve the SAME installed package that `writes.mjs` uses at runtime (no drift, no tx-builder graph inlined) |
+| `$app/environment` | `_stubs/app-environment.mjs` (`browser = false`) | SvelteKit virtual module, absent in Node |
+| `dompurify` | `_stubs/dompurify.mjs` (passthrough) | only used for display-safety before `JSON.parse`; the MCP/REST consumer is an agent, not a DOM — see the stub comment |
+
+Everything else (our `src`, plus the pure `@scure`/`@noble` helpers actually
+reached) is inlined, so the bundle is self-contained apart from
+`reputation-system/node`.
 
 ## Layout
 
 | File | Role |
 |------|------|
-| `core.mjs` | framework-agnostic reads + pure helpers + Type NFT ids (no Svelte). Port of `src/lib/ergo/sourceFetch.ts` + `sourceObject.ts`. |
+| `_entry.mjs` | esbuild entry — re-exports the read surface straight from `../src/lib/ergo/*`. |
+| `build.mjs` | esbuild build (`npm run build:mcp`) → `_generated/lib.bundle.mjs`. |
+| `_generated/lib.bundle.mjs` | **generated** (committed) Node bundle of the `src/` read logic. |
+| `_stubs/` | Node-safe aliases for `$app/environment` and `dompurify`. |
+| `core.mjs` | thin adapter over the bundle: re-exports helpers/constants, defaults `explorerUri`. |
 | `lib.mjs` | `makeSigner()` (seed/unsigned from env), `fetchMainBox()`, `describeResult()`. |
-| `writes.mjs` | write surface (port of `src/lib/ergo/sourceStore.ts`) via `reputation-system/node`'s `create_*_with_signer`. |
+| `writes.mjs` | write surface via `reputation-system/node`'s `create_*_with_signer` (necessary Node signer glue — `sourceStore.ts` is browser-`ergo`-bound and can't be reused). |
 | `tools.mjs` | shared MCP tool registry (TOOLS + HANDLERS), also used by `../.service`. |
 | `server.mjs` | stdio bootstrap. |
 
-The Streamable-HTTP + REST twin lives in [`../.service`](../.service) and reuses
-the same `core/lib/writes/tools` modules.
+The Streamable-HTTP + REST twin lives in [`../.service`](../.service) and imports
+these same `core/lib/writes/tools` modules directly (no copies).
 
 ## Signer modes (env)
 

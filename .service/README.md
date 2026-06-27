@@ -9,16 +9,24 @@ file-source registry surface over plain HTTP on `0.0.0.0:8080`:
 - `* /api/*` — a clean JSON REST mirror of every method (reads via `GET`, writes
   via `POST`).
 
-Reads + pure helpers live in `core.mjs`; writes in `writes.mjs` (env-configured
-signer in `lib.mjs`); the shared MCP tool registry is `tools.mjs`. The MCP and
-REST layers call the same functions, so they never diverge. These four modules
-are byte-for-byte copies of the ones under `../mcp/`.
+Reads + pure helpers, writes, the env-configured signer, and the shared MCP tool
+registry all live **once** under [`../mcp/`](../mcp); `server-http.mjs` imports
+them directly (`../mcp/core.mjs`, `lib.mjs`, `writes.mjs`, `tools.mjs`) — there
+are no duplicated copies in `.service/`. The MCP and REST layers call the same
+functions, so they never diverge, and the on-chain read logic itself is bundled
+from `src/` (see [`../mcp/README.md`](../mcp/README.md)).
+
+The `Dockerfile` preserves this sibling layout inside the sealed microVM
+(`/app/service/server-http.mjs` + `/app/mcp/...`) so `../mcp` resolves the same
+way in the VM as in local dev. The prebuilt `../mcp/_generated/lib.bundle.mjs` is
+copied in, so the VM needs no build toolchain.
 
 ## Run locally
 
 ```bash
+# from ../mcp first: npm install && npm run build:mcp  (provides node_modules + bundle)
 npm install
-npm start                 # binds 0.0.0.0:8080
+npm start                 # binds 0.0.0.0:8080, imports ../mcp/*
 curl localhost:8080/health
 ```
 
